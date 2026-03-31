@@ -1,0 +1,95 @@
+From: fast-code <fast-code@local>
+Subject: [PATCH] Remove 8 non-essential notification hooks from REPL render cycle
+
+Hooks removed:
+  1. useNpmDeprecationNotification     - irrelevant (not npm-installed)
+  2. useCanSwitchToExistingSubscription - network call every session
+  3. useModelMigrationNotifications     - one-time migration notices
+  4. useInstallMessages                 - installation checks irrelevant
+  5. usePluginAutoupdateNotification    - auto-update disabled
+  6. useIDEStatusIndicator              - 26 cache slots, heaviest hook
+  7. useTeammateLifecycleNotification   - swarm mode only
+  8. useAutoModeUnavailableNotification - behind TRANSCRIPT_CLASSIFIER flag
+
+Estimated per-render savings: 38 React hook slots eliminated.
+---
+ src/screens/REPL.tsx | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+--- a/src/screens/REPL.tsx
++++ b/src/screens/REPL.tsx
+@@ -229,7 +229,7 @@
+ import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js';
+ import { usePostCompactSurvey } from 'src/components/FeedbackSurvey/usePostCompactSurvey.js';
+ import { FeedbackSurvey } from 'src/components/FeedbackSurvey/FeedbackSurvey.js';
+-import { useInstallMessages } from 'src/hooks/notifs/useInstallMessages.js';
++// [fast-code] removed: useInstallMessages (installation checks irrelevant for our build)
+ import { useAwaySummary } from 'src/hooks/useAwaySummary.js';
+ import { useChromeExtensionNotification } from 'src/hooks/useChromeExtensionNotification.js';
+ import { useOfficialMarketplaceNotification } from 'src/hooks/useOfficialMarketplaceNotification.js';
+@@ -244,17 +244,17 @@
+ import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
+ import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
+-import { useAutoModeUnavailableNotification } from 'src/hooks/notifs/useAutoModeUnavailableNotification.js';
++// [fast-code] removed: useAutoModeUnavailableNotification (behind TRANSCRIPT_CLASSIFIER flag)
+ import { AUTO_MODE_DESCRIPTION } from 'src/components/AutoModeOptInDialog.js';
+ import { useLspInitializationNotification } from 'src/hooks/notifs/useLspInitializationNotification.js';
+ import { useLspPluginRecommendation } from 'src/hooks/useLspPluginRecommendation.js';
+@@ -253,7 +253,7 @@
+ import { usePluginInstallationStatus } from 'src/hooks/notifs/usePluginInstallationStatus.js';
+-import { usePluginAutoupdateNotification } from 'src/hooks/notifs/usePluginAutoupdateNotification.js';
++// [fast-code] removed: usePluginAutoupdateNotification (auto-update disabled)
+ import { performStartupChecks } from 'src/utils/plugins/performStartupChecks.js';
+@@ -259,11 +259,11 @@
+ import { useRateLimitWarningNotification } from 'src/hooks/notifs/useRateLimitWarningNotification.js';
+ import { useDeprecationWarningNotification } from 'src/hooks/notifs/useDeprecationWarningNotification.js';
+-import { useNpmDeprecationNotification } from 'src/hooks/notifs/useNpmDeprecationNotification.js';
+-import { useIDEStatusIndicator } from 'src/hooks/notifs/useIDEStatusIndicator.js';
+-import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrationNotifications.js';
+-import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js';
+-import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js';
++// [fast-code] removed: useNpmDeprecationNotification (not npm-installed)
++// [fast-code] removed: useIDEStatusIndicator (26 cache slots, heaviest hook)
++// [fast-code] removed: useModelMigrationNotifications (one-time migration notices)
++// [fast-code] removed: useCanSwitchToExistingSubscription (network call every session)
++// [fast-code] removed: useTeammateLifecycleNotification (swarm mode only)
+ import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js';
+@@ -742,19 +742,19 @@
+   // notifications
+-  useModelMigrationNotifications();
+-  useCanSwitchToExistingSubscription();
+-  useIDEStatusIndicator({
+-    ideSelection,
+-    mcpClients,
+-    ideInstallationStatus
+-  });
++  // [fast-code] 8 non-essential notification hooks removed — see patches/0001
++  // useModelMigrationNotifications();
++  // useCanSwitchToExistingSubscription();
++  // useIDEStatusIndicator({
++  //   ideSelection,
++  //   mcpClients,
++  //   ideInstallationStatus
++  // });
+   useMcpConnectivityStatus({
+     mcpClients
+   });
+-  useAutoModeUnavailableNotification();
++  // useAutoModeUnavailableNotification();
+   usePluginInstallationStatus();
+-  usePluginAutoupdateNotification();
++  // usePluginAutoupdateNotification();
+   useSettingsErrors();
+   useRateLimitWarningNotification(mainLoopModel);
+   useFastModeNotification();
+   useDeprecationWarningNotification(mainLoopModel);
+-  useNpmDeprecationNotification();
++  // useNpmDeprecationNotification();
+   useAntOrgWarningNotification();
+-  useInstallMessages();
++  // useInstallMessages();
+   useChromeExtensionNotification();
+   useOfficialMarketplaceNotification();
+   useLspInitializationNotification();
+-  useTeammateLifecycleNotification();
++  // useTeammateLifecycleNotification();

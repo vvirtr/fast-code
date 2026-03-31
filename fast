@@ -1,0 +1,2 @@
+#!/bin/bash
+exec /home/vvirtr/.bun/bin/bun /home/vvirtr/vibe/fast-code/dist/cli.js "$@"
