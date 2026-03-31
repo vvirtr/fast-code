@@ -28,8 +28,8 @@
   <text x="86" y="180" fill="#e6edf3" font-family="monospace" font-size="14">hi</text>
   <line x1="60" y1="195" x2="840" y2="195" stroke="#afc8f0" stroke-width="1" opacity="0.4"/>
   <!-- Timestamp -->
-  <text x="560" y="222" fill="#93c5fd" font-family="monospace" font-size="11">10:34 PM</text>
-  <text x="635" y="222" fill="#93c5fd" font-family="monospace" font-size="11">anthropic/claude-opus-4.6</text>
+  <text x="530" y="222" fill="#93c5fd" font-family="monospace" font-size="11">10:34 PM</text>
+  <text x="600" y="222" fill="#93c5fd" font-family="monospace" font-size="11">anthropic/claude-opus-4.6</text>
   <!-- Response -->
   <text x="68" y="248" fill="#93c5fd" font-family="monospace" font-size="14">&#x25CF;</text>
   <text x="86" y="248" fill="#e6edf3" font-family="monospace" font-size="14">Hi! I'm Fast Code, an optimized CLI assistant powered by</text>
@@ -45,8 +45,8 @@
   <text x="68" y="405" fill="#93c5fd" font-family="monospace" font-size="12">&#x23F5;&#x23F5; bypass permissions on</text>
   <text x="280" y="405" fill="#6e7681" font-family="monospace" font-size="12">(shift+tab to cycle)</text>
   <!-- Stats -->
-  <rect x="590" y="440" width="250" height="24" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
-  <text x="605" y="456" fill="#6e7681" font-family="monospace" font-size="11">-88% bundle</text>
-  <text x="700" y="456" fill="#6e7681" font-family="monospace" font-size="11">-30% RAM</text>
-  <text x="785" y="456" fill="#6e7681" font-family="monospace" font-size="11">-27% TTFT</text>
+  <rect x="590" y="440" width="240" height="24" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="600" y="456" fill="#6e7681" font-family="monospace" font-size="10">-88% bundle</text>
+  <text x="690" y="456" fill="#6e7681" font-family="monospace" font-size="10">-30% RAM</text>
+  <text x="770" y="456" fill="#6e7681" font-family="monospace" font-size="10">-27% TTFT</text>
 </svg>
