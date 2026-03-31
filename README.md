@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="logo.svg" width="64" alt="logo">
-</p>
-
-<h1 align="center">Fast Code</h1>
+<h1 align="center"><img src="logo.svg" width="40" align="center"> Fast Code</h1>
 
 <p align="center">
   <img src="cover.svg" width="700" alt="Fast Code terminal">
