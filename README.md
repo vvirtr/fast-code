@@ -1,7 +1,7 @@
 <h1 align="center"><img src="logo.svg" width="40" align="center"> Fast Code</h1>
 
 <p align="center">
-  <img src="cover.svg" width="700" alt="Fast Code terminal">
+  <img src="cover2.svg" width="700" alt="Fast Code terminal">
 </p>
 
 Optimized fork of Claude Code 2.1.88. Same functionality, smaller bundle, lower memory footprint.
