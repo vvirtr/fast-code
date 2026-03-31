@@ -12,12 +12,11 @@ Linux, Bun 1.2, Opus 4.6.
 
 | Metric | Claude Code | Fast Code | Delta |
 |--------|------------|-----------|-------|
-| Dist size | 64 MB | 7.6 MB | -88% |
-| Peak RSS (short) | 224 MB | 158 MB | -30% |
-| Peak RSS (real task) | 226 MB | 173 MB | -23% |
-| TTFT `-p` | 6991 ms | 5135 ms | -27% |
-| Page faults | 106k | 78k | -26% |
-| CPU% (short) | 78% | 67% | -14% |
+| Dist size | 64 MB | 7.4 MB | -88% |
+| Peak RSS (short) | 224 MB | 154 MB | -31% |
+| Peak RSS (real task) | 226 MB | 167 MB | -26% |
+| TTFT `-p` | 6991 ms | 4857 ms | -31% |
+| Page faults | 106k | 72k | -32% |
 
 ## Install
 
