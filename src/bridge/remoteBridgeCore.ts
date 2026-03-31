@@ -29,7 +29,6 @@
  */
 
 import { feature } from 'bun:bundle'
-import axios from 'axios'
 import {
   createV2ReplTransport,
   type ReplBridgeTransport,
@@ -924,6 +923,7 @@ import {
   type RemoteCredentials,
 } from './codeSessionApi.js'
 import { getBridgeBaseUrlOverride } from './bridgeConfig.js'
+import { httpPost, HttpError, isHttpError } from '../utils/fetchHttp.js'
 
 // CLI-side wrapper that applies the CLAUDE_BRIDGE_BASE_URL dev override and
 // injects the trusted-device token (both are env/GrowthBook reads that the
@@ -981,7 +981,7 @@ async function archiveSession(
   // cse_* and we correctly send it.
   const compatId = toCompatSessionId(sessionId)
   try {
-    const response = await axios.post(
+    const response = await httpPost(
       `${baseUrl}/v1/sessions/${compatId}/archive`,
       {},
       {
@@ -1001,7 +1001,7 @@ async function archiveSession(
   } catch (err) {
     const msg = errorMessage(err)
     logForDebugging(`[remote-bridge] Archive failed: ${msg}`)
-    return axios.isAxiosError(err) && err.code === 'ECONNABORTED'
+    return isHttpError(err) && err.code === 'ECONNABORTED'
       ? 'timeout'
       : 'error'
   }

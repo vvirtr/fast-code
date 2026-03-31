@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { memoize } from '../../utils/lodashNative.js'
 import { getOauthConfig } from 'src/constants/oauth.js'
 import {
@@ -12,6 +11,7 @@ import { isEnvDefinedFalsy } from 'src/utils/envUtils.js'
 import { clearMcpAuthCache } from './client.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type { ScopedMcpServerConfig } from './types.js'
+import { httpGet } from '../../utils/fetchHttp.js'
 
 type ClaudeAIMcpServer = {
   type: 'mcp_server'
@@ -79,7 +79,7 @@ export const fetchClaudeAIMcpConfigsIfEligible = memoize(
 
       logForDebugging(`[claudeai-mcp] Fetching from ${url}`)
 
-      const response = await axios.get<ClaudeAIMcpServersResponse>(url, {
+      const response = await httpGet<ClaudeAIMcpServersResponse>(url, {
         headers: {
           Authorization: `Bearer ${tokens.accessToken}`,
           'Content-Type': 'application/json',

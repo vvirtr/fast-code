@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { getOauthConfig } from '../../constants/oauth.js'
 import {
   getOauthAccountInfo,
@@ -10,6 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getOAuthHeaders, prepareApiRequest } from '../../utils/teleport/api.js'
+import { httpGet } from '../../utils/fetchHttp.js'
 import type {
   ReferralCampaign,
   ReferralEligibilityResponse,
@@ -35,7 +35,7 @@ export async function fetchReferralEligibility(
 
   const url = `${getOauthConfig().BASE_API_URL}/api/oauth/organizations/${orgUUID}/referral/eligibility`
 
-  const response = await axios.get(url, {
+  const response = await httpGet(url, {
     headers,
     params: { campaign },
     timeout: 5000, // 5 second timeout for background fetch
@@ -56,7 +56,7 @@ export async function fetchReferralRedemptions(
 
   const url = `${getOauthConfig().BASE_API_URL}/api/oauth/organizations/${orgUUID}/referral/redemptions`
 
-  const response = await axios.get<ReferralRedemptionsResponse>(url, {
+  const response = await httpGet<ReferralRedemptionsResponse>(url, {
     headers,
     params: { campaign },
     timeout: 10000, // 10 second timeout

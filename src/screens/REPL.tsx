@@ -617,7 +617,10 @@ export function REPL({
   const [mainThreadAgentDefinition, setMainThreadAgentDefinition] = useState(initialMainThreadAgentDefinition);
   const toolPermissionContext = useAppState(s => s.toolPermissionContext);
   const verbose = useAppState(s => s.verbose);
-  const mcp = useAppState(s => s.mcp);
+  const mcpClients_ = useAppState(s => s.mcp.clients);
+  const mcpTools = useAppState(s => s.mcp.tools);
+  const mcpCommands = useAppState(s => s.mcp.commands);
+  const mcpResources = useAppState(s => s.mcp.resources);
   const plugins = useAppState(s => s.plugins);
   const agentDefinitions = useAppState(s => s.agentDefinitions);
   const fileHistory = useAppState(s => s.fileHistory);
@@ -631,19 +634,20 @@ export function REPL({
   const pendingWorkerRequest = useAppState(s => s.pendingWorkerRequest);
   const pendingSandboxRequest = useAppState(s => s.pendingSandboxRequest);
   const teamContext = useAppState(s => s.teamContext);
-  const tasks = useAppState(s => s.tasks);
+  const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId);
+  const viewedTask_ = useAppState(s => s.viewingAgentTaskId ? s.tasks[s.viewingAgentTaskId] : undefined);
+  const hasRunningTeammates_ = useAppState(s => Object.values(s.tasks).some(t => isInProcessTeammateTask(t) && t.status === 'running'));
   const workerSandboxPermissions = useAppState(s => s.workerSandboxPermissions);
   const elicitation = useAppState(s => s.elicitation);
   const ultraplanPendingChoice = useAppState(s => s.ultraplanPendingChoice);
   const ultraplanLaunchPending = useAppState(s => s.ultraplanLaunchPending);
-  const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId);
   const setAppState = useSetAppState();
 
   // Bootstrap: retained local_agent that hasn't loaded disk yet → read
   // sidechain JSONL and UUID-merge with whatever stream has appended so far.
   // Stream appends immediately on retain (no defer); bootstrap fills the
   // prefix. Disk-write-before-yield means live is always a suffix of disk.
-  const viewedLocalAgent = viewingAgentTaskId ? tasks[viewingAgentTaskId] : undefined;
+  const viewedLocalAgent = viewedTask_;
   const needsBootstrap = isLocalAgentTask(viewedLocalAgent) && viewedLocalAgent.retain && !viewedLocalAgent.diskLoaded;
   useEffect(() => {
     if (!viewingAgentTaskId || !needsBootstrap) return;
@@ -724,7 +728,7 @@ export function REPL({
 
   // eslint-disable-next-line prefer-const
   let trySuggestBgPRIntercept = SUGGEST_BG_PR_NOOP;
-  const mcpClients = useMergedClients(initialMcpClients, mcp.clients);
+  const mcpClients = useMergedClients(initialMcpClients, mcpClients_);
 
   // IDE integration
   const [ideSelection, setIDESelection] = useState<IDESelection | undefined>(undefined);
@@ -809,7 +813,7 @@ export function REPL({
   useSwarmInitialization(setAppState, initialMessages, {
     enabled: !isRemoteSession
   });
-  const mergedTools = useMergedTools(combinedInitialTools, mcp.tools, toolPermissionContext);
+  const mergedTools = useMergedTools(combinedInitialTools, mcpTools, toolPermissionContext);
 
   // Apply agent tool restrictions if mainThreadAgentDefinition is set
   const {
@@ -831,11 +835,11 @@ export function REPL({
 
   // Merge commands from local state, plugins, and MCP
   const commandsWithPlugins = useMergedCommands(localCommands, plugins.commands as Command[]);
-  const mergedCommands = useMergedCommands(commandsWithPlugins, mcp.commands as Command[]);
+  const mergedCommands = useMergedCommands(commandsWithPlugins, mcpCommands as Command[]);
   // Filter out all commands if disableSlashCommands is true
   const commands = useMemo(() => disableSlashCommands ? [] : mergedCommands, [disableSlashCommands, mergedCommands]);
-  useIdeLogging(isRemoteSession ? EMPTY_MCP_CLIENTS : mcp.clients);
-  useIdeSelection(isRemoteSession ? EMPTY_MCP_CLIENTS : mcp.clients, setIDESelection);
+  useIdeLogging(isRemoteSession ? EMPTY_MCP_CLIENTS : mcpClients_);
+  useIdeSelection(isRemoteSession ? EMPTY_MCP_CLIENTS : mcpClients_, setIDESelection);
   const [streamMode, setStreamMode] = useState<SpinnerMode>('responding');
   // Ref mirror so onSubmit can read the latest value without adding
   // streamMode to its deps. streamMode flips between
@@ -1589,7 +1593,7 @@ export function REPL({
 
   // Session backgrounding — hook is below, after getToolUseContext
 
-  const hasRunningTeammates = useMemo(() => getAllInProcessTeammateTasks(tasks).some(t => t.status === 'running'), [tasks]);
+  const hasRunningTeammates = hasRunningTeammates_;
 
   // Show deferred turn duration message once all swarm teammates finish
   useEffect(() => {
@@ -4494,7 +4498,7 @@ export function REPL({
   // viewedAgentTask: teammate OR local_agent — drives the boolean checks
   // below. viewedTeammateTask: teammate-only narrowed, for teammate-specific
   // field access (inProgressToolUseIDs).
-  const viewedTask = viewingAgentTaskId ? tasks[viewingAgentTaskId] : undefined;
+  const viewedTask = viewedTask_;
   const viewedTeammateTask = viewedTask && isInProcessTeammateTask(viewedTask) ? viewedTask : undefined;
   const viewedAgentTask = viewedTeammateTask ?? (viewedTask && isLocalAgentTask(viewedTask) ? viewedTask : undefined);
 

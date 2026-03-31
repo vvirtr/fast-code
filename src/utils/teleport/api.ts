@@ -1,4 +1,3 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { randomUUID } from 'crypto'
 import { getOauthConfig } from 'src/constants/oauth.js'
 import { getOrganizationUUID } from 'src/services/oauth/client.js'
@@ -11,6 +10,7 @@ import { lazySchema } from '../lazySchema.js'
 import { logError } from '../log.js'
 import { sleep } from '../sleep.js'
 import { jsonStringify } from '../slowOperations.js'
+import { httpGet, httpPost, httpPatch, HttpError, isHttpError, type HttpResponse, type HttpRequestConfig } from '../fetchHttp.js'
 
 // Retry configuration for teleport API requests
 const TELEPORT_RETRY_DELAYS = [2000, 4000, 8000, 16000] // 4 retries with exponential backoff
@@ -22,7 +22,7 @@ export const CCR_BYOC_BETA = 'ccr-byoc-2025-07-29'
  * Checks if an axios error is a transient network error that should be retried
  */
 export function isTransientNetworkError(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) {
+  if (!isHttpError(error)) {
     return false
   }
 
@@ -46,13 +46,13 @@ export function isTransientNetworkError(error: unknown): boolean {
  */
 export async function axiosGetWithRetry<T>(
   url: string,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> {
+  config?: HttpRequestConfig,
+): Promise<HttpResponse<T>> {
   let lastError: unknown
 
   for (let attempt = 0; attempt <= MAX_TELEPORT_RETRIES; attempt++) {
     try {
-      return await axios.get<T>(url, config)
+      return await httpGet<T>(url, config)
     } catch (error) {
       lastError = error
 
@@ -298,7 +298,7 @@ export async function fetchSession(
     'x-organization-uuid': orgUUID,
   }
 
-  const response = await axios.get<SessionResource>(url, {
+  const response = await httpGet<SessionResource>(url, {
     headers,
     timeout: 15000,
     validateStatus: status => status < 500,
@@ -393,7 +393,7 @@ export async function sendEventToRemoteSession(
     )
     // The endpoint may block until the CCR worker is ready. Observed ~2.6s
     // in normal cases; allow a generous margin for cold-start containers.
-    const response = await axios.post(url, requestBody, {
+    const response = await httpPost(url, requestBody, {
       headers,
       validateStatus: status => status < 500,
       timeout: 30000,
@@ -439,7 +439,7 @@ export async function updateSessionTitle(
     logForDebugging(
       `[updateSessionTitle] Updating title for session ${sessionId}: "${title}"`,
     )
-    const response = await axios.patch(
+    const response = await httpPatch(
       url,
       { title },
       {

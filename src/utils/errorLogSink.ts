@@ -10,7 +10,6 @@
  * log.ts has NO heavy dependencies - events are queued until this sink is attached.
  */
 
-import axios from 'axios'
 import { dirname, join } from 'path'
 import { getSessionId } from '../bootstrap/state.js'
 import { createBufferedWriter } from './bufferedWriter.js'
@@ -20,6 +19,7 @@ import { logForDebugging } from './debug.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
 import { jsonStringify } from './slowOperations.js'
+import { HttpError, isHttpError } from './fetchHttp.js'
 
 const DATE = dateToFilename(new Date())
 
@@ -154,7 +154,7 @@ function logErrorImpl(error: Error): void {
 
   // Enrich axios errors with request URL, status, and server message for debugging
   let context = ''
-  if (axios.isAxiosError(error) && error.config?.url) {
+  if (isHttpError(error) && error.config?.url) {
     const parts = [`url=${error.config.url}`]
     if (error.response?.status !== undefined) {
       parts.push(`status=${error.response.status}`)

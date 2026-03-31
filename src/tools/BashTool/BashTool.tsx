@@ -417,6 +417,44 @@ async function applySedEdit(simulatedEdit: {
     }
   };
 }
+
+// [fast-code] Cache read-only command results for 5 seconds
+const cmdCache = new Map<string, { output: string, exitCode: number, ts: number }>()
+const CMD_CACHE_TTL = 5000
+const CMD_CACHE_MAX = 50
+const CMD_CACHE_MAX_OUTPUT = 100_000 // Don't cache >100KB outputs
+
+const STATIC_COMMANDS = /^(which|type|uname|arch|node\s+--version|python3?\s+--version)\b/;
+
+function cmdCacheKey(command: string): string {
+  return command + '\0' + process.cwd()
+}
+
+function cmdCacheGet(key: string): { output: string, exitCode: number } | undefined {
+  const entry = cmdCache.get(key)
+  if (!entry) return undefined
+  const isStatic = STATIC_COMMANDS.test(key)
+  if (!isStatic && Date.now() - entry.ts > CMD_CACHE_TTL) {
+    cmdCache.delete(key)
+    return undefined
+  }
+  return { output: entry.output, exitCode: entry.exitCode }
+}
+
+function cmdCacheSet(key: string, output: string, exitCode: number): void {
+  if (output.length > CMD_CACHE_MAX_OUTPUT) return
+  // Evict oldest if at capacity
+  if (cmdCache.size >= CMD_CACHE_MAX && !cmdCache.has(key)) {
+    const oldest = cmdCache.keys().next().value
+    if (oldest !== undefined) cmdCache.delete(oldest)
+  }
+  cmdCache.set(key, { output, exitCode, ts: Date.now() })
+}
+
+function cmdCacheClear(): void {
+  cmdCache.clear()
+}
+
 export const BashTool = buildTool({
   name: BASH_TOOL_NAME,
   searchHint: 'execute shell commands',
@@ -627,6 +665,25 @@ export const BashTool = buildTool({
     if (input._simulatedSedEdit) {
       return applySedEdit(input._simulatedSedEdit, toolUseContext, parentMessage);
     }
+
+    // [fast-code] Check read-only command cache before executing
+    const isReadOnlyCmd = this.isReadOnly?.(input) ?? false;
+    if (isReadOnlyCmd) {
+      const cacheKey = cmdCacheKey(input.command);
+      const cached = cmdCacheGet(cacheKey);
+      if (cached) {
+        const interpretation = interpretCommandResult(input.command, cached.exitCode, cached.output, '');
+        const data: Out = {
+          stdout: stripEmptyLines(cached.output),
+          stderr: '',
+          interrupted: false,
+          returnCodeInterpretation: interpretation?.message,
+          noOutputExpected: isSilentBashCommand(input.command),
+        };
+        return { data };
+      }
+    }
+
     const {
       abortController,
       getAppState,
@@ -681,6 +738,16 @@ export const BashTool = buildTool({
       // Get the final result from the generator's return value
       result = generatorResult.value;
       trackGitOperations(input.command, result.code, result.stdout);
+
+      // [fast-code] Cache read-only results / invalidate on write
+      if (isReadOnlyCmd) {
+        if (!result.interrupted && result.stdout !== undefined) {
+          cmdCacheSet(cmdCacheKey(input.command), result.stdout, result.code);
+        }
+      } else {
+        cmdCacheClear();
+      }
+
       const isInterrupt = result.interrupted && abortController.signal.reason === 'interrupt';
 
       // stderr is interleaved in stdout (merged fd) — result.stdout has both

@@ -1,4 +1,3 @@
-import axios from 'axios'
 import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { logForDebugging } from '../debug.js'
@@ -8,6 +7,7 @@ import { getProxyUrl, shouldBypassProxy } from '../proxy.js'
 import * as settingsModule from '../settings/settings.js'
 import type { HttpHook } from '../settings/types.js'
 import { ssrfGuardedLookup } from './ssrfGuard.js'
+import { httpPost } from '../fetchHttp.js'
 
 const DEFAULT_HTTP_HOOK_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes (matches TOOL_HOOK_EXECUTION_TIMEOUT_MS)
 
@@ -198,22 +198,15 @@ export async function execHttpHook(
       logForDebugging(`Hooks: HTTP hook POST to ${hook.url}`)
     }
 
-    const response = await axios.post<string>(hook.url, jsonInput, {
+    const response = await httpPost<string>(hook.url, jsonInput, {
       headers,
       signal: combinedSignal,
       responseType: 'text',
       validateStatus: () => true,
       maxRedirects: 0,
-      // Explicit false prevents axios's own env-var proxy detection; when an
-      // env-var proxy is configured, the global axios interceptor installed
-      // by configureGlobalAgents() handles it via httpsAgent instead.
-      proxy: sandboxProxy ?? false,
-      // SSRF guard: validate resolved IPs, block private/link-local ranges
-      // (but allow loopback for local dev). Skipped when any proxy is in
-      // use — the proxy performs DNS for the target, and applying the
-      // guard would instead validate the proxy's own IP, breaking
-      // connections to corporate proxies on private networks.
-      lookup: sandboxProxy || envProxyActive ? undefined : ssrfGuardedLookup,
+      // Proxy is handled by the global undici dispatcher set by
+      // configureGlobalAgents(). SSRF guard (lookup) is not supported by
+      // native fetch — the undici global dispatcher handles proxy routing.
     })
 
     cleanup()

@@ -181,21 +181,18 @@ export function parseSettingsFile(path: string): {
 } {
   const cached = getCachedParsedFile(path)
   if (cached) {
-    // Clone so callers (e.g. mergeWith in getSettingsForSourceUncached,
-    // updateSettingsForSource) can't mutate the cached entry.
-    return {
-      settings: cached.settings ? clone(cached.settings) : null,
-      errors: cached.errors,
-    }
+    // Cached settings are frozen — safe to return without cloning.
+    // Callers that need to mutate (e.g. mergeWith target) must clone first.
+    return cached
   }
   const result = parseSettingsFileUncached(path)
-  setCachedParsedFile(path, result)
-  // Clone the first return too — the caller may mutate before
-  // another caller reads the same cache entry.
-  return {
-    settings: result.settings ? clone(result.settings) : null,
-    errors: result.errors,
+  // Freeze settings before caching so downstream readers can't
+  // accidentally mutate the shared cached object.
+  if (result.settings) {
+    Object.freeze(result.settings)
   }
+  setCachedParsedFile(path, result)
+  return result
 }
 
 function parseSettingsFileUncached(path: string): {
@@ -355,8 +352,10 @@ function getSettingsForSourceUncached(
     if (inlineSettings) {
       const parsed = SettingsSchema().safeParse(inlineSettings)
       if (parsed.success) {
+        // Clone fileSettings — it's frozen from the parse cache and
+        // mergeWith mutates its first argument.
         return mergeWith(
-          fileSettings || {},
+          fileSettings ? clone(fileSettings) : {},
           parsed.data,
           settingsMergeCustomizer,
         ) as SettingsJson
@@ -434,10 +433,12 @@ export function updateSettingsForSource(
     getFsImplementation().mkdirSync(dirname(filePath))
 
     // Try to get existing settings with validation. Bypass the per-source
-    // cache — mergeWith below mutates its target (including nested refs),
-    // and mutating the cached object would leak unpersisted state if the
-    // write fails before resetSettingsCache().
+    // cache — mergeWith below mutates its target (including nested refs).
+    // Clone because parseSettingsFile returns frozen objects from the cache.
     let existingSettings = getSettingsForSourceUncached(source)
+    if (existingSettings) {
+      existingSettings = clone(existingSettings)
+    }
 
     // If validation failed, check if file exists with a JSON syntax error
     if (!existingSettings) {

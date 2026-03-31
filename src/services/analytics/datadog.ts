@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { createHash } from 'crypto'
 import { memoize } from '../../utils/lodashNative.js'
 import { getOrCreateUserID } from '../../utils/config.js'
@@ -8,6 +7,7 @@ import { getAPIProvider } from '../../utils/model/providers.js'
 import { MODEL_COSTS } from '../../utils/modelCost.js'
 import { isAnalyticsDisabled } from './config.js'
 import { getEventMetadata } from './metadata.js'
+import { httpPost } from '../../utils/fetchHttp.js'
 
 const DATADOG_LOGS_ENDPOINT =
   'https://http-intake.logs.us5.datadoghq.com/api/v2/logs'
@@ -106,7 +106,7 @@ async function flushLogs(): Promise<void> {
   logBatch = []
 
   try {
-    await axios.post(DATADOG_LOGS_ENDPOINT, logsToSend, {
+    await httpPost(DATADOG_LOGS_ENDPOINT, logsToSend, {
       headers: {
         'Content-Type': 'application/json',
         'DD-API-KEY': DATADOG_CLIENT_TOKEN,

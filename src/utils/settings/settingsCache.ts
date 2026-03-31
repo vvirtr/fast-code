@@ -9,6 +9,11 @@ export function getSessionSettingsCache(): SettingsWithErrors | null {
 }
 
 export function setSessionSettingsCache(value: SettingsWithErrors): void {
+  // Freeze settings so downstream readers can't accidentally mutate
+  // the shared cached object.
+  if (value.settings) {
+    Object.freeze(value.settings)
+  }
   sessionSettingsCache = value
 }
 

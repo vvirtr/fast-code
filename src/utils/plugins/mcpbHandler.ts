@@ -2,7 +2,6 @@ import type {
   McpbManifest,
   McpbUserConfigurationOption,
 } from '@anthropic-ai/mcpb'
-import axios from 'axios'
 import { createHash } from 'crypto'
 import { chmod, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
@@ -21,6 +20,7 @@ import {
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { getSystemDirectories } from '../systemDirectories.js'
 import { classifyFetchError, logPluginFetch } from './fetchTelemetry.js'
+import { httpGet } from '../fetchHttp.js'
 /**
  * User configuration values for MCPB
  */
@@ -492,7 +492,7 @@ async function downloadMcpb(
   const started = performance.now()
   let fetchTelemetryFired = false
   try {
-    const response = await axios.get(url, {
+    const response = await httpGet(url, {
       timeout: 120000, // 2 minute timeout
       responseType: 'arraybuffer',
       maxRedirects: 5, // Follow redirects (like curl -L)

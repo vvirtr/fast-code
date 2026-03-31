@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { coerce } from 'semver'
@@ -9,6 +8,7 @@ import { toError } from './errors.js'
 import { logError } from './log.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 import { gt } from './semver.js'
+import { httpGet } from './fetchHttp.js'
 
 const MAX_RELEASE_NOTES_SHOWN = 5
 
@@ -90,7 +90,7 @@ export async function fetchAndStoreChangelog(): Promise<void> {
     return
   }
 
-  const response = await axios.get(RAW_CHANGELOG_URL)
+  const response = await httpGet(RAW_CHANGELOG_URL)
   if (response.status === 200) {
     const changelogContent = response.data
 

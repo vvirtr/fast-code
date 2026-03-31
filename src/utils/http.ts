@@ -2,7 +2,6 @@
  * HTTP utility constants and helpers
  */
 
-import axios from 'axios'
 import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import {
   getAnthropicApiKey,
@@ -12,6 +11,7 @@ import {
 } from './auth.js'
 import { getClaudeCodeUserAgent } from './userAgent.js'
 import { getWorkload } from './workloadContext.js'
+import { HttpError, isHttpError } from './fetchHttp.js'
 
 // WARNING: We rely on `claude-cli` in the user agent for log filtering.
 // Please do NOT change this without making sure that logging also gets updated!
@@ -119,7 +119,7 @@ export async function withOAuth401Retry<T>(
   try {
     return await request()
   } catch (err) {
-    if (!axios.isAxiosError(err)) throw err
+    if (!isHttpError(err)) throw err
     const status = err.response?.status
     const isAuthError =
       status === 401 ||

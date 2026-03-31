@@ -10,7 +10,6 @@
  */
 
 import { feature } from 'bun:bundle'
-import axios from 'axios'
 import { mkdir, readFile, stat, writeFile } from 'fs/promises'
 import { pickBy } from '../../utils/lodashNative.js'
 import { dirname } from 'path'
@@ -41,6 +40,7 @@ import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import { logEvent } from '../analytics/index.js'
 import { getRetryDelay } from '../api/withRetry.js'
+import { httpGet, httpPut, HttpError } from '../../utils/fetchHttp.js'
 import {
   type SettingsSyncFetchResult,
   type SettingsSyncUploadResult,
@@ -263,7 +263,7 @@ async function fetchUserSettingsOnce(): Promise<SettingsSyncFetchResult> {
     }
 
     const endpoint = getSettingsSyncEndpoint()
-    const response = await axios.get(endpoint, {
+    const response = await httpGet(endpoint, {
       headers,
       timeout: SETTINGS_SYNC_TIMEOUT_MS,
       validateStatus: status => status === 200 || status === 404,
@@ -365,7 +365,7 @@ async function uploadUserSettings(
     }
 
     const endpoint = getSettingsSyncEndpoint()
-    const response = await axios.put(
+    const response = await httpPut(
       endpoint,
       { entries },
       {

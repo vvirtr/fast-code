@@ -1,5 +1,4 @@
 import { c as _c } from "react/compiler-runtime";
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { logEvent } from 'src/services/analytics/index.js';
 import { Spinner } from '../components/Spinner.js';
@@ -9,6 +8,7 @@ import { Box, Text } from '../ink.js';
 import { getSSLErrorHint } from '../services/api/errorUtils.js';
 import { getUserAgent } from './http.js';
 import { logError } from './log.js';
+import { httpGet } from './fetchHttp.js'
 export interface PreflightCheckResult {
   success: boolean;
   error?: string;
@@ -21,7 +21,7 @@ async function checkEndpoints(): Promise<PreflightCheckResult> {
     const endpoints = [`${oauthConfig.BASE_API_URL}/api/hello`, `${tokenUrl.origin}/v1/oauth/hello`];
     const checkEndpoint = async (url: string): Promise<PreflightCheckResult> => {
       try {
-        const response = await axios.get(url, {
+        const response = await httpGet(url, {
           headers: {
             'User-Agent': getUserAgent()
           }

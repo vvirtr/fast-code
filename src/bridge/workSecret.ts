@@ -1,6 +1,6 @@
-import axios from 'axios'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 import type { WorkSecret } from './types.js'
+import { httpPost } from '../utils/fetchHttp.js'
 
 /** Decode a base64url-encoded work secret and validate its version. */
 export function decodeWorkSecret(secret: string): WorkSecret {
@@ -98,7 +98,7 @@ export async function registerWorker(
   sessionUrl: string,
   accessToken: string,
 ): Promise<number> {
-  const response = await axios.post(
+  const response = await httpPost(
     `${sessionUrl}/worker/register`,
     {},
     {

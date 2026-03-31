@@ -1,6 +1,6 @@
-import axios from 'axios'
 
 import { debugBody, extractErrorDetail } from './debugUtils.js'
+import { httpGet, httpPost, httpDelete } from '../utils/fetchHttp.js'
 import {
   BRIDGE_LOGIN_INSTRUCTION,
   type BridgeApiClient,
@@ -148,7 +148,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       const response = await withOAuthRetry(
         (token: string) =>
-          axios.post<{
+          httpPost<{
             environment_id: string
             environment_secret: string
           }>(
@@ -209,7 +209,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
       const prevEmptyPolls = consecutiveEmptyPolls
       consecutiveEmptyPolls = 0
 
-      const response = await axios.get<WorkResponse | null>(
+      const response = await httpGet<WorkResponse | null>(
         `${deps.baseUrl}/v1/environments/${environmentId}/work/poll`,
         {
           headers: getHeaders(environmentSecret),
@@ -256,7 +256,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       debug(`[bridge:api] POST .../work/${workId}/ack`)
 
-      const response = await axios.post(
+      const response = await httpPost(
         `${deps.baseUrl}/v1/environments/${environmentId}/work/${workId}/ack`,
         {},
         {
@@ -282,7 +282,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       const response = await withOAuthRetry(
         (token: string) =>
-          axios.post(
+          httpPost(
             `${deps.baseUrl}/v1/environments/${environmentId}/work/${workId}/stop`,
             { force },
             {
@@ -305,7 +305,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       const response = await withOAuthRetry(
         (token: string) =>
-          axios.delete(
+          httpDelete(
             `${deps.baseUrl}/v1/environments/bridge/${environmentId}`,
             {
               headers: getHeaders(token),
@@ -329,7 +329,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       const response = await withOAuthRetry(
         (token: string) =>
-          axios.post(
+          httpPost(
             `${deps.baseUrl}/v1/sessions/${sessionId}/archive`,
             {},
             {
@@ -368,7 +368,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       const response = await withOAuthRetry(
         (token: string) =>
-          axios.post(
+          httpPost(
             `${deps.baseUrl}/v1/environments/${environmentId}/bridge/reconnect`,
             { session_id: sessionId },
             {
@@ -394,7 +394,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
 
       debug(`[bridge:api] POST .../work/${workId}/heartbeat`)
 
-      const response = await axios.post<{
+      const response = await httpPost<{
         lease_extended: boolean
         state: string
         last_heartbeat: string
@@ -427,7 +427,7 @@ export function createBridgeApiClient(deps: BridgeApiDeps): BridgeApiClient {
         `[bridge:api] POST /v1/sessions/${sessionId}/events type=${event.type}`,
       )
 
-      const response = await axios.post(
+      const response = await httpPost(
         `${deps.baseUrl}/v1/sessions/${sessionId}/events`,
         { events: [event] },
         {

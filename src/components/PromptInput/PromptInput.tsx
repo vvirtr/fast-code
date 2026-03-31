@@ -191,6 +191,7 @@ type Props = {
 // Bottom slot has maxHeight="50%"; reserve lines for footer, border, status.
 const PROMPT_FOOTER_LINES = 5;
 const MIN_INPUT_VIEWPORT_LINES = 3;
+type ActiveDialog = 'model' | 'quickOpen' | 'globalSearch' | 'history' | 'fastMode' | 'thinking' | 'autoMode' | 'teams' | 'bridge' | null;
 function PromptInput({
   debug,
   ideSelection,
@@ -371,8 +372,7 @@ function PromptInput({
   // printable, inputFilter prepends a space before it. Any other input
   // (arrow, escape, backspace, paste, space) disarms without inserting.
   const pendingSpaceAfterPillRef = useRef(false);
-  const [showTeamsDialog, setShowTeamsDialog] = useState(false);
-  const [showBridgeDialog, setShowBridgeDialog] = useState(false);
+  const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [teammateFooterIndex, setTeammateFooterIndex] = useState(0);
   // -1 sentinel: tasks pill is selected but no specific agent row is selected yet.
   // First ↓ selects the pill, second ↓ moves to row 0. Prevents double-select
@@ -403,13 +403,7 @@ function PromptInput({
   }, [coordinatorTaskCount, coordinatorTaskIndex, minCoordinatorIndex]);
   const [isPasting, setIsPasting] = useState(false);
   const [isExternalEditorActive, setIsExternalEditorActive] = useState(false);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [showQuickOpen, setShowQuickOpen] = useState(false);
-  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
-  const [showHistoryPicker, setShowHistoryPicker] = useState(false);
-  const [showFastModePicker, setShowFastModePicker] = useState(false);
-  const [showThinkingToggle, setShowThinkingToggle] = useState(false);
-  const [showAutoModeOptIn, setShowAutoModeOptIn] = useState(false);
+  // Dialog visibility is managed by activeDialog above (only one can be open at a time).
   const [previousModeBeforeAuto, setPreviousModeBeforeAuto] = useState<PermissionMode | null>(null);
   const autoModeOptInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1384,7 +1378,7 @@ function PromptInput({
 
   // Handler for chat:modelPicker - toggle model picker
   const handleModelPicker = useCallback(() => {
-    setShowModelPicker(prev => !prev);
+    setActiveDialog(prev => prev === 'model' ? null : 'model');
     if (helpOpen) {
       setHelpOpen(false);
     }
@@ -1392,7 +1386,7 @@ function PromptInput({
 
   // Handler for chat:fastMode - toggle fast mode picker
   const handleFastModePicker = useCallback(() => {
-    setShowFastModePicker(prev => !prev);
+    setActiveDialog(prev => prev === 'fastMode' ? null : 'fastMode');
     if (helpOpen) {
       setHelpOpen(false);
     }
@@ -1400,7 +1394,7 @@ function PromptInput({
 
   // Handler for chat:thinkingToggle - toggle thinking mode
   const handleThinkingToggle = useCallback(() => {
-    setShowThinkingToggle(prev => !prev);
+    setActiveDialog(prev => prev === 'thinking' ? null : 'thinking');
     if (helpOpen) {
       setHelpOpen(false);
     }
@@ -1446,7 +1440,7 @@ function PromptInput({
     }
 
     // Compute the next mode without triggering side effects first
-    logForDebugging(`[auto-mode] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current}`);
+    logForDebugging(`[auto-mode] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${activeDialog === 'autoMode'} timeoutPending=${!!autoModeOptInTimeoutRef.current}`);
     const nextMode = getNextPermissionMode(toolPermissionContext, teamContext);
 
     // Check if user is entering auto mode for the first time. Gated on the
@@ -1481,10 +1475,10 @@ function PromptInput({
         if (autoModeOptInTimeoutRef.current) {
           clearTimeout(autoModeOptInTimeoutRef.current);
         }
-        autoModeOptInTimeoutRef.current = setTimeout((setShowAutoModeOptIn, autoModeOptInTimeoutRef) => {
-          setShowAutoModeOptIn(true);
+        autoModeOptInTimeoutRef.current = setTimeout((setActiveDialog, autoModeOptInTimeoutRef) => {
+          setActiveDialog('autoMode');
           autoModeOptInTimeoutRef.current = null;
-        }, 400, setShowAutoModeOptIn, autoModeOptInTimeoutRef);
+        }, 400, setActiveDialog, autoModeOptInTimeoutRef);
         if (helpOpen) {
           setHelpOpen(false);
         }
@@ -1498,11 +1492,11 @@ function PromptInput({
     // the prior mode, whose next mode is auto again, forever.
     // The dialog's own decline button (handleAutoModeOptInDecline) handles revert.
     if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (showAutoModeOptIn || autoModeOptInTimeoutRef.current) {
-        if (showAutoModeOptIn) {
+      if (activeDialog === 'autoMode' || autoModeOptInTimeoutRef.current) {
+        if (activeDialog === 'autoMode') {
           logEvent('tengu_auto_mode_opt_in_dialog_decline', {});
         }
-        setShowAutoModeOptIn(false);
+        setActiveDialog(null);
         if (autoModeOptInTimeoutRef.current) {
           clearTimeout(autoModeOptInTimeoutRef.current);
           autoModeOptInTimeoutRef.current = null;
@@ -1553,12 +1547,12 @@ function PromptInput({
     if (helpOpen) {
       setHelpOpen(false);
     }
-  }, [toolPermissionContext, teamContext, viewingAgentTaskId, viewedTeammate, setAppState, setToolPermissionContext, helpOpen, showAutoModeOptIn]);
+  }, [toolPermissionContext, teamContext, viewingAgentTaskId, viewedTeammate, setAppState, setToolPermissionContext, helpOpen, activeDialog]);
 
   // Handler for auto mode opt-in dialog acceptance
   const handleAutoModeOptInAccept = useCallback(() => {
     if (feature('TRANSCRIPT_CLASSIFIER')) {
-      setShowAutoModeOptIn(false);
+      setActiveDialog(null);
       setPreviousModeBeforeAuto(null);
 
       // Now that the user accepted, apply the full transition: activate the
@@ -1588,7 +1582,7 @@ function PromptInput({
   const handleAutoModeOptInDecline = useCallback(() => {
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       logForDebugging(`[auto-mode] handleAutoModeOptInDecline: reverting to ${previousModeBeforeAuto}, setting isAutoModeAvailable=false`);
-      setShowAutoModeOptIn(false);
+      setActiveDialog(null);
       if (autoModeOptInTimeoutRef.current) {
         clearTimeout(autoModeOptInTimeoutRef.current);
         autoModeOptInTimeoutRef.current = null;
@@ -1701,7 +1695,7 @@ function PromptInput({
   const quickSearchActive = feature('QUICK_SEARCH') ? !isModalOverlayActive : false;
   useKeybinding('app:quickOpen', () => {
     if (feature('QUICK_SEARCH')) {
-      setShowQuickOpen(true);
+      setActiveDialog('quickOpen');
       setHelpOpen(false);
     }
   }, {
@@ -1710,7 +1704,7 @@ function PromptInput({
   });
   useKeybinding('app:globalSearch', () => {
     if (feature('QUICK_SEARCH')) {
-      setShowGlobalSearch(true);
+      setActiveDialog('globalSearch');
       setHelpOpen(false);
     }
   }, {
@@ -1719,7 +1713,7 @@ function PromptInput({
   });
   useKeybinding('history:search', () => {
     if (feature('HISTORY_PICKER')) {
-      setShowHistoryPicker(true);
+      setActiveDialog('history');
       setHelpOpen(false);
     }
   }, {
@@ -1826,11 +1820,11 @@ function PromptInput({
         case 'bagel':
           break;
         case 'teams':
-          setShowTeamsDialog(true);
+          setActiveDialog('teams');
           selectFooterItem(null);
           break;
         case 'bridge':
-          setShowBridgeDialog(true);
+          setActiveDialog('bridge');
           selectFooterItem(null);
           break;
       }
@@ -1866,7 +1860,7 @@ function PromptInput({
     // Skip all input handling when a full-screen dialog is open. These dialogs
     // render via early return, but hooks run unconditionally — so without this
     // guard, Escape inside a dialog leaks to the double-press message-selector.
-    if (showTeamsDialog || showQuickOpen || showGlobalSearch || showHistoryPicker) {
+    if (activeDialog === 'teams' || activeDialog === 'quickOpen' || activeDialog === 'globalSearch' || activeDialog === 'history') {
       return;
     }
 
@@ -2033,7 +2027,7 @@ function PromptInput({
         })
       };
     });
-    setShowModelPicker(false);
+    setActiveDialog(null);
     const effectiveFastMode = (isFastMode ?? false) && !wasFastModeDisabled;
     let message = `Model set to ${modelDisplayString(model)}`;
     if (isBilledAsExtraUsage(model, effectiveFastMode, isOpus1mMergeEnabled())) {
@@ -2053,19 +2047,19 @@ function PromptInput({
     });
   }, [setAppState, addNotification, isFastMode]);
   const handleModelCancel = useCallback(() => {
-    setShowModelPicker(false);
+    setActiveDialog(null);
   }, []);
 
   // Memoize the model picker element to prevent unnecessary re-renders
   // when AppState changes for unrelated reasons (e.g., notifications arriving)
   const modelPickerElement = useMemo(() => {
-    if (!showModelPicker) return null;
+    if (activeDialog !== 'model') return null;
     return <Box flexDirection="column" marginTop={1}>
         <ModelPicker initial={mainLoopModel_} sessionModel={mainLoopModelForSession} onSelect={handleModelSelect} onCancel={handleModelCancel} isStandaloneCommand showFastModeNotice={isFastModeEnabled() && isFastMode && isFastModeSupportedByModel(mainLoopModel_) && isFastModeAvailable()} />
       </Box>;
-  }, [showModelPicker, mainLoopModel_, mainLoopModelForSession, handleModelSelect, handleModelCancel]);
+  }, [activeDialog, mainLoopModel_, mainLoopModelForSession, handleModelSelect, handleModelCancel]);
   const handleFastModeSelect = useCallback((result?: string) => {
-    setShowFastModePicker(false);
+    setActiveDialog(null);
     if (result) {
       addNotification({
         key: 'fast-mode-toggled',
@@ -2078,11 +2072,11 @@ function PromptInput({
 
   // Memoize the fast mode picker element
   const fastModePickerElement = useMemo(() => {
-    if (!showFastModePicker) return null;
+    if (activeDialog !== 'fastMode') return null;
     return <Box flexDirection="column" marginTop={1}>
         <FastModePicker onDone={handleFastModeSelect} unavailableReason={getFastModeUnavailableReason()} />
       </Box>;
-  }, [showFastModePicker, handleFastModeSelect]);
+  }, [activeDialog, handleFastModeSelect]);
 
   // Memoized callbacks for thinking toggle
   const handleThinkingSelect = useCallback((enabled: boolean) => {
@@ -2090,7 +2084,7 @@ function PromptInput({
       ...prev,
       thinkingEnabled: enabled
     }));
-    setShowThinkingToggle(false);
+    setActiveDialog(null);
     logEvent('tengu_thinking_toggled_hotkey', {
       enabled
     });
@@ -2104,29 +2098,29 @@ function PromptInput({
     });
   }, [setAppState, addNotification]);
   const handleThinkingCancel = useCallback(() => {
-    setShowThinkingToggle(false);
+    setActiveDialog(null);
   }, []);
 
   // Memoize the thinking toggle element
   const thinkingToggleElement = useMemo(() => {
-    if (!showThinkingToggle) return null;
+    if (activeDialog !== 'thinking') return null;
     return <Box flexDirection="column" marginTop={1}>
         <ThinkingToggle currentValue={thinkingEnabled ?? true} onSelect={handleThinkingSelect} onCancel={handleThinkingCancel} isMidConversation={messages.some(m => m.type === 'assistant')} />
       </Box>;
-  }, [showThinkingToggle, thinkingEnabled, handleThinkingSelect, handleThinkingCancel, messages.length]);
+  }, [activeDialog, thinkingEnabled, handleThinkingSelect, handleThinkingCancel, messages.length]);
 
   // Portal dialog to DialogOverlay in fullscreen so it escapes the bottom
   // slot's overflowY:hidden clip (same pattern as SuggestionsOverlay).
   // Must be called before early returns below to satisfy rules-of-hooks.
   // Memoized so the portal useEffect doesn't churn on every PromptInput render.
-  const autoModeOptInDialog = useMemo(() => feature('TRANSCRIPT_CLASSIFIER') && showAutoModeOptIn ? <AutoModeOptInDialog onAccept={handleAutoModeOptInAccept} onDecline={handleAutoModeOptInDecline} /> : null, [showAutoModeOptIn, handleAutoModeOptInAccept, handleAutoModeOptInDecline]);
+  const autoModeOptInDialog = useMemo(() => feature('TRANSCRIPT_CLASSIFIER') && activeDialog === 'autoMode' ? <AutoModeOptInDialog onAccept={handleAutoModeOptInAccept} onDecline={handleAutoModeOptInDecline} /> : null, [activeDialog, handleAutoModeOptInAccept, handleAutoModeOptInDecline]);
   useSetPromptOverlayDialog(isFullscreenEnvEnabled() ? autoModeOptInDialog : null);
   if (showBashesDialog) {
     return <BackgroundTasksDialog onDone={() => setShowBashesDialog(false)} toolUseContext={getToolUseContext(messages, [], new AbortController(), mainLoopModel)} initialDetailTaskId={typeof showBashesDialog === 'string' ? showBashesDialog : undefined} />;
   }
-  if (isAgentSwarmsEnabled() && showTeamsDialog) {
+  if (isAgentSwarmsEnabled() && activeDialog === 'teams') {
     return <TeamsDialog initialTeams={cachedTeams} onDone={() => {
-      setShowTeamsDialog(false);
+      setActiveDialog(null);
     }} />;
   }
   if (feature('QUICK_SEARCH')) {
@@ -2134,14 +2128,14 @@ function PromptInput({
       const cursorChar = input[cursorOffset - 1] ?? ' ';
       insertTextAtCursor(/\s/.test(cursorChar) ? text : ` ${text}`);
     };
-    if (showQuickOpen) {
-      return <QuickOpenDialog onDone={() => setShowQuickOpen(false)} onInsert={insertWithSpacing} />;
+    if (activeDialog === 'quickOpen') {
+      return <QuickOpenDialog onDone={() => setActiveDialog(null)} onInsert={insertWithSpacing} />;
     }
-    if (showGlobalSearch) {
-      return <GlobalSearchDialog onDone={() => setShowGlobalSearch(false)} onInsert={insertWithSpacing} />;
+    if (activeDialog === 'globalSearch') {
+      return <GlobalSearchDialog onDone={() => setActiveDialog(null)} onInsert={insertWithSpacing} />;
     }
   }
-  if (feature('HISTORY_PICKER') && showHistoryPicker) {
+  if (feature('HISTORY_PICKER') && activeDialog === 'history') {
     return <HistorySearchDialog initialQuery={input} onSelect={entry => {
       const entryMode = getModeFromInput(entry.display);
       const value = getValueFromInput(entry.display);
@@ -2149,8 +2143,8 @@ function PromptInput({
       trackAndSetInput(value);
       setPastedContents(entry.pastedContents);
       setCursorOffset(value.length);
-      setShowHistoryPicker(false);
-    }} onCancel={() => setShowHistoryPicker(false)} />;
+      setActiveDialog(null);
+    }} onCancel={() => setActiveDialog(null)} />;
   }
 
   // Show loop mode menu when requested (ant-only, eliminated from external builds)
@@ -2163,9 +2157,9 @@ function PromptInput({
   if (thinkingToggleElement) {
     return thinkingToggleElement;
   }
-  if (showBridgeDialog) {
+  if (activeDialog === 'bridge') {
     return <BridgeDialog onDone={() => {
-      setShowBridgeDialog(false);
+      setActiveDialog(null);
       selectFooterItem(null);
     }} />;
   }
@@ -2290,7 +2284,7 @@ function PromptInput({
     // bottom row. Keeping Notifications mounted prevents AutoUpdater's
     // initial-check effect from re-firing on every slash-completion
     // toggle (PR#22413).
-    <Box position="absolute" marginTop={briefOwnsGap ? -2 : -1} height={suggestions.length === 0 && !showAutoModeOptIn ? 1 : 0} width="100%" paddingLeft={2} paddingRight={1} flexDirection="column" justifyContent="flex-end" overflow="hidden">
+    <Box position="absolute" marginTop={briefOwnsGap ? -2 : -1} height={suggestions.length === 0 && activeDialog !== 'autoMode' ? 1 : 0} width="100%" paddingLeft={2} paddingRight={1} flexDirection="column" justifyContent="flex-end" overflow="hidden">
           <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} />
         </Box> : null}
     </Box>;

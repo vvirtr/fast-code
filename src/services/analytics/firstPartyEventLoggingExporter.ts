@@ -4,7 +4,6 @@ import type {
   LogRecordExporter,
   ReadableLogRecord,
 } from '@opentelemetry/sdk-logs'
-import axios from 'axios'
 import { randomUUID } from 'crypto'
 import { appendFile, mkdir, readdir, unlink, writeFile } from 'fs/promises'
 import * as path from 'path'
@@ -21,7 +20,7 @@ import {
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
 import { checkHasTrustDialogAccepted } from '../../utils/config.js'
-import { logForDebugging } from '../../utils/debug.js'
+import { isDebugMode, logForDebugging } from '../../utils/debug.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, isFsInaccessible, toError } from '../../utils/errors.js'
 import { getAuthHeaders } from '../../utils/http.js'
@@ -33,6 +32,7 @@ import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
 import { stripProtoFields } from './index.js'
 import { type EventMetadata, to1PEventFormat } from './metadata.js'
+import { httpPost, HttpError, isHttpError } from '../../utils/fetchHttp.js'
 
 // Unique ID for this process run - used to isolate failed event files between runs
 const BATCH_UUID = randomUUID()
@@ -584,7 +584,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
       : baseHeaders
 
     try {
-      const response = await axios.post(this.endpoint, payload, {
+      const response = await httpPost(this.endpoint, payload, {
         timeout: this.timeout,
         headers,
       })
@@ -594,7 +594,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
       // Handle 401 by retrying without auth
       if (
         useAuth &&
-        axios.isAxiosError(error) &&
+        isHttpError(error) &&
         error.response?.status === 401
       ) {
         if (process.env.USER_TYPE === 'ant') {
@@ -602,7 +602,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
             '1P event logging: 401 auth error, retrying without auth',
           )
         }
-        const response = await axios.post(this.endpoint, payload, {
+        const response = await httpPost(this.endpoint, payload, {
           timeout: this.timeout,
           headers: baseHeaders,
         })
@@ -623,7 +623,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
       logForDebugging(
         `1P event logging: ${eventCount} events exported successfully${withAuth ? ' (with auth)' : ' (without auth)'}`,
       )
-      logForDebugging(`API Response: ${jsonStringify(responseData, null, 2)}`)
+      if (isDebugMode()) logForDebugging(`API Response: ${jsonStringify(responseData, null, 2)}`)
     }
   }
 
@@ -779,7 +779,7 @@ export class FirstPartyEventLoggingExporter implements LogRecordExporter {
 }
 
 function getAxiosErrorContext(error: unknown): string {
-  if (!axios.isAxiosError(error)) {
+  if (!isHttpError(error)) {
     return errorMessage(error)
   }
 

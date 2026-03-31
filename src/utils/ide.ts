@@ -1,5 +1,4 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import axios from 'axios'
 import { execa } from 'execa'
 import { capitalize, memoize } from './lodashNative.js'
 import { createConnection } from 'net'
@@ -44,6 +43,7 @@ import {
 } from './idePathConversion.js'
 import { sleep } from './sleep.js'
 import { jsonParse } from './slowOperations.js'
+import { httpGet, HttpError, isHttpError } from './fetchHttp.js'
 
 function isProcessRunning(pid: number): boolean {
   try {
@@ -1423,7 +1423,7 @@ async function installFromArtifactory(command: string): Promise<string> {
     'https://artifactory.infra.ant.dev/artifactory/armorcode-claude-code-internal/claude-vscode-releases/stable'
 
   try {
-    const versionResponse = await axios.get(versionUrl, {
+    const versionResponse = await httpGet(versionUrl, {
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
@@ -1442,20 +1442,15 @@ async function installFromArtifactory(command: string): Promise<string> {
     )
 
     try {
-      const vsixResponse = await axios.get(vsixUrl, {
+      const vsixResponse = await httpGet<ArrayBuffer>(vsixUrl, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
-        responseType: 'stream',
+        responseType: 'arraybuffer',
       })
 
       // Write the downloaded file to disk
-      const writeStream = getFsImplementation().createWriteStream(tempVsixPath)
-      await new Promise<void>((resolve, reject) => {
-        vsixResponse.data.pipe(writeStream)
-        writeStream.on('finish', resolve)
-        writeStream.on('error', reject)
-      })
+      getFsImplementation().writeFileSync(tempVsixPath, Buffer.from(vsixResponse.data))
 
       // Install the .vsix file
       // Add delay to prevent code command crashes
@@ -1483,7 +1478,7 @@ async function installFromArtifactory(command: string): Promise<string> {
       }
     }
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isHttpError(error)) {
       throw new Error(
         `Failed to fetch extension version from artifactory: ${error.message}`,
       )

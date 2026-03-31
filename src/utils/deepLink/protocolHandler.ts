@@ -12,7 +12,7 @@
  */
 
 import { homedir } from 'os'
-import { logForDebugging } from '../debug.js'
+import { isDebugMode, logForDebugging } from '../debug.js'
 import {
   filterExistingPaths,
   getKnownPathsForRepo,
@@ -46,7 +46,7 @@ export async function handleDeepLinkUri(uri: string): Promise<number> {
     return 1
   }
 
-  logForDebugging(`Parsed deep link action: ${jsonStringify(action)}`)
+  if (isDebugMode()) logForDebugging(`Parsed deep link action: ${jsonStringify(action)}`)
 
   // Always the running executable — no PATH lookup. The OS launched us via
   // an absolute path (bundle symlink / .desktop Exec= / registry command)

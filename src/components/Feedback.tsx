@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { readFile, stat } from 'fs/promises';
 import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -29,6 +28,7 @@ import { Byline } from './design-system/Byline.js';
 import { Dialog } from './design-system/Dialog.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
 import TextInput from './TextInput.js';
+import { httpPost, HttpError, isHttpError } from '../utils/fetchHttp.js'
 
 // This value was determined experimentally by testing the URL length limit
 const GITHUB_URL_LIMIT = 7250;
@@ -540,7 +540,7 @@ async function submitFeedback(data: FeedbackData, signal?: AbortSignal): Promise
       'User-Agent': getUserAgent(),
       ...authResult.headers
     };
-    const response = await axios.post('https://api.anthropic.com/api/claude_cli_feedback', {
+    const response = await httpPost('https://api.anthropic.com/api/claude_cli_feedback', {
       content: jsonStringify(data)
     }, {
       headers,
@@ -567,12 +567,12 @@ async function submitFeedback(data: FeedbackData, signal?: AbortSignal): Promise
     };
   } catch (err) {
     // Handle cancellation/abort - don't log as error
-    if (axios.isCancel(err)) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
       return {
         success: false
       };
     }
-    if (axios.isAxiosError(err) && err.response?.status === 403) {
+    if (isHttpError(err) && err.response?.status === 403) {
       const errorData = err.response.data;
       if (errorData?.error?.type === 'permission_error' && errorData?.error?.message?.includes('Custom data retention settings')) {
         sanitizeAndLogError(new Error('Cannot submit feedback because custom data retention settings are enabled'));

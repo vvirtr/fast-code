@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { isEqual } from '../../utils/lodashNative.js'
 import {
   getAnthropicApiKey,
@@ -15,6 +14,7 @@ import { logError } from '../../utils/log.js'
 import { getAPIProvider } from '../../utils/model/providers.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { httpGet, HttpError, isHttpError } from '../../utils/fetchHttp.js'
 
 const bootstrapResponseSchema = lazySchema(() =>
   z.object({
@@ -82,7 +82,7 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
       }
 
       logForDebugging('[Bootstrap] Fetching')
-      const response = await axios.get<unknown>(endpoint, {
+      const response = await httpGet<unknown>(endpoint, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': getClaudeCodeUserAgent(),
@@ -102,7 +102,7 @@ async function fetchBootstrapAPI(): Promise<BootstrapResponse | null> {
     })
   } catch (error) {
     logForDebugging(
-      `[Bootstrap] Fetch failed: ${axios.isAxiosError(error) ? (error.response?.status ?? error.code) : 'unknown'}`,
+      `[Bootstrap] Fetch failed: ${isHttpError(error) ? (error.response?.status ?? error.code) : 'unknown'}`,
     )
     throw error
   }

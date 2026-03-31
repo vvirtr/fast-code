@@ -292,7 +292,9 @@ export async function readAgentMetadata(
 ): Promise<AgentMetadata | null> {
   const path = getAgentMetadataPath(agentId)
   try {
-    const raw = await readFile(path, 'utf-8')
+    const raw = typeof globalThis.Bun !== 'undefined'
+      ? await Bun.file(path).text()
+      : await readFile(path, 'utf-8')
     return JSON.parse(raw) as AgentMetadata
   } catch (e) {
     if (isFsInaccessible(e)) return null
@@ -346,7 +348,9 @@ export async function readRemoteAgentMetadata(
 ): Promise<RemoteAgentMetadata | null> {
   const path = getRemoteAgentMetadataPath(taskId)
   try {
-    const raw = await readFile(path, 'utf-8')
+    const raw = typeof globalThis.Bun !== 'undefined'
+      ? await Bun.file(path).text()
+      : await readFile(path, 'utf-8')
     return JSON.parse(raw) as RemoteAgentMetadata
   } catch (e) {
     if (isFsInaccessible(e)) return null
@@ -383,7 +387,10 @@ export async function listRemoteAgentMetadata(): Promise<
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.meta.json')) continue
     try {
-      const raw = await readFile(join(dir, entry.name), 'utf-8')
+      const metaPath = join(dir, entry.name)
+      const raw = typeof globalThis.Bun !== 'undefined'
+        ? await Bun.file(metaPath).text()
+        : await readFile(metaPath, 'utf-8')
       results.push(JSON.parse(raw) as RemoteAgentMetadata)
     } catch (e) {
       // Skip unreadable or corrupt files — a partial write from a crashed
@@ -929,7 +936,9 @@ class Project {
           )
           return
         }
-        const content = await readFile(this.sessionFile, { encoding: 'utf-8' })
+        const content = typeof globalThis.Bun !== 'undefined'
+          ? await Bun.file(this.sessionFile).text()
+          : await readFile(this.sessionFile, { encoding: 'utf-8' })
         const lines = content.split('\n').filter((line: string) => {
           if (!line.trim()) return true
           try {
@@ -2354,7 +2363,9 @@ export async function loadTranscriptFromFile(
   }
 
   // json log files
-  const content = await readFile(filePath, { encoding: 'utf-8' })
+  const content = typeof globalThis.Bun !== 'undefined'
+    ? await Bun.file(filePath).text()
+    : await readFile(filePath, { encoding: 'utf-8' })
   let parsed: unknown
 
   try {

@@ -27,11 +27,11 @@ export const getGlobalClaudeFile = memoize((): string => {
 
 const hasInternetAccess = memoize(async (): Promise<boolean> => {
   try {
-    const { default: axiosClient } = await import('axios')
-    await axiosClient.head('http://1.1.1.1', {
+    const response = await fetch('http://1.1.1.1', {
+      method: 'HEAD',
       signal: AbortSignal.timeout(1000),
     })
-    return true
+    return response.ok
   } catch {
     return false
   }

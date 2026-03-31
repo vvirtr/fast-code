@@ -94,7 +94,7 @@ export function Notifications(t0) {
   const {
     status: ideStatus
   } = useIdeConnectionStatus(mcpClients);
-  const notifications = useAppState(_temp);
+  const currentNotification = useAppState(_temp);
   const {
     addNotification,
     removeNotification
@@ -175,8 +175,8 @@ export function Notifications(t0) {
   const t11 = isNarrow ? "flex-start" : "flex-end";
   const t12 = isInOverageMode ?? false;
   let t13;
-  if ($[15] !== apiKeyStatus || $[16] !== autoUpdaterResult || $[17] !== debug || $[18] !== ideSelection || $[19] !== isAutoUpdating || $[20] !== isShowingCompactMessage || $[21] !== mainLoopModel || $[22] !== mcpClients || $[23] !== notifications || $[24] !== onAutoUpdaterResult || $[25] !== onChangeIsUpdating || $[26] !== shouldShowAutoUpdater || $[27] !== t12 || $[28] !== tokenUsage || $[29] !== verbose) {
-    t13 = <NotificationContent ideSelection={ideSelection} mcpClients={mcpClients} notifications={notifications} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} tokenUsage={tokenUsage} mainLoopModel={mainLoopModel} shouldShowAutoUpdater={shouldShowAutoUpdater} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} isShowingCompactMessage={isShowingCompactMessage} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} />;
+  if ($[15] !== apiKeyStatus || $[16] !== autoUpdaterResult || $[17] !== debug || $[18] !== ideSelection || $[19] !== isAutoUpdating || $[20] !== isShowingCompactMessage || $[21] !== mainLoopModel || $[22] !== mcpClients || $[23] !== currentNotification || $[24] !== onAutoUpdaterResult || $[25] !== onChangeIsUpdating || $[26] !== shouldShowAutoUpdater || $[27] !== t12 || $[28] !== tokenUsage || $[29] !== verbose) {
+    t13 = <NotificationContent ideSelection={ideSelection} mcpClients={mcpClients} currentNotification={currentNotification} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} tokenUsage={tokenUsage} mainLoopModel={mainLoopModel} shouldShowAutoUpdater={shouldShowAutoUpdater} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} isShowingCompactMessage={isShowingCompactMessage} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} />;
     $[15] = apiKeyStatus;
     $[16] = autoUpdaterResult;
     $[17] = debug;
@@ -185,7 +185,7 @@ export function Notifications(t0) {
     $[20] = isShowingCompactMessage;
     $[21] = mainLoopModel;
     $[22] = mcpClients;
-    $[23] = notifications;
+    $[23] = currentNotification;
     $[24] = onAutoUpdaterResult;
     $[25] = onChangeIsUpdating;
     $[26] = shouldShowAutoUpdater;
@@ -211,12 +211,12 @@ function _temp2() {
   return setEnvHookNotifier(null);
 }
 function _temp(s) {
-  return s.notifications;
+  return s.notifications.current;
 }
 function NotificationContent({
   ideSelection,
   mcpClients,
-  notifications,
+  currentNotification,
   isInOverageMode,
   isTeamOrEnterprise,
   apiKeyStatus,
@@ -233,10 +233,7 @@ function NotificationContent({
 }: {
   ideSelection: IDESelection | undefined;
   mcpClients?: MCPServerConnection[];
-  notifications: {
-    current: Notification | null;
-    queue: Notification[];
-  };
+  currentNotification: Notification | null;
   isInOverageMode: boolean;
   isTeamOrEnterprise: boolean;
   apiKeyStatus: VerificationStatus;
@@ -285,10 +282,10 @@ function NotificationContent({
   }
   return <>
       <IdeStatusIndicator ideSelection={ideSelection} mcpClients={mcpClients} />
-      {notifications.current && ('jsx' in notifications.current ? <Text wrap="truncate" key={notifications.current.key}>
-            {notifications.current.jsx}
-          </Text> : <Text color={notifications.current.color} dimColor={!notifications.current.color} wrap="truncate">
-            {notifications.current.text}
+      {currentNotification && ('jsx' in currentNotification ? <Text wrap="truncate" key={currentNotification.key}>
+            {currentNotification.jsx}
+          </Text> : <Text color={currentNotification.color} dimColor={!currentNotification.color} wrap="truncate">
+            {currentNotification.text}
           </Text>)}
       {isInOverageMode && !isTeamOrEnterprise && <Box>
           <Text dimColor wrap="truncate">

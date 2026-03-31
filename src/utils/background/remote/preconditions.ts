@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { getOauthConfig } from 'src/constants/oauth.js'
 import { getOrganizationUUID } from 'src/services/oauth/client.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/growthbook.js'
@@ -14,6 +13,7 @@ import { errorMessage } from '../../errors.js'
 import { findGitRoot, getIsClean } from '../../git.js'
 import { getOAuthHeaders } from '../../teleport/api.js'
 import { fetchEnvironments } from '../../teleport/environments.js'
+import { httpGet, HttpError, isHttpError } from '../../fetchHttp.js'
 
 /**
  * Checks if user needs to log in with Claude.ai
@@ -105,7 +105,7 @@ export async function checkGithubAppInstalled(
 
     logForDebugging(`Checking GitHub app installation for ${owner}/${repo}`)
 
-    const response = await axios.get<{
+    const response = await httpGet<{
       repo: {
         name: string
         owner: { login: string }
@@ -142,7 +142,7 @@ export async function checkGithubAppInstalled(
     return false
   } catch (error) {
     // 4XX errors typically mean app is not installed or repo not accessible
-    if (axios.isAxiosError(error)) {
+    if (isHttpError(error)) {
       const status = error.response?.status
       if (status && status >= 400 && status < 500) {
         logForDebugging(
@@ -183,7 +183,7 @@ export async function checkGithubTokenSynced(): Promise<boolean> {
 
     logForDebugging('Checking if GitHub token is synced via web-setup')
 
-    const response = await axios.get(url, {
+    const response = await httpGet(url, {
       headers,
       timeout: 15000,
     })
@@ -195,7 +195,7 @@ export async function checkGithubTokenSynced(): Promise<boolean> {
     )
     return synced
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isHttpError(error)) {
       const status = error.response?.status
       if (status && status >= 400 && status < 500) {
         logForDebugging(

@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { z } from 'zod/v4'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
@@ -14,6 +13,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { DESCRIPTION, PROMPT, REMOTE_TRIGGER_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
+import { httpRequest } from '../../utils/fetchHttp.js'
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
@@ -132,7 +132,7 @@ export const RemoteTriggerTool = buildTool({
         break
     }
 
-    const res = await axios.request({
+    const res = await httpRequest({
       method,
       url,
       headers,

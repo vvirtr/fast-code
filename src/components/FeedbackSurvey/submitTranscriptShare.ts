@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { readFile, stat } from 'fs/promises'
 import type { Message } from '../../types/message.js'
 import { checkAndRefreshOAuthTokenIfNeeded } from '../../utils/auth.js'
@@ -14,6 +13,7 @@ import {
 } from '../../utils/sessionStorage.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { redactSensitiveInfo } from '../Feedback.js'
+import { httpPost } from '../../utils/fetchHttp.js'
 
 type TranscriptShareResult = {
   success: boolean
@@ -84,7 +84,7 @@ export async function submitTranscriptShare(
       ...authResult.headers,
     }
 
-    const response = await axios.post(
+    const response = await httpPost(
       'https://api.anthropic.com/api/claude_code_shared_session_transcripts',
       { content, appearance_id: appearanceId },
       {

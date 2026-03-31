@@ -1,4 +1,3 @@
-import axios from 'axios';
 import chalk from 'chalk';
 import { randomUUID } from 'crypto';
 import React from 'react';
@@ -22,7 +21,7 @@ import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens } from './aut
 import { checkGithubAppInstalled } from './background/remote/preconditions.js';
 import { deserializeMessages, type TeleportRemoteResponse } from './conversationRecovery.js';
 import { getCwd } from './cwd.js';
-import { logForDebugging } from './debug.js';
+import { isDebugMode, logForDebugging } from './debug.js';
 import { detectCurrentRepositoryWithHost, parseGitHubRepository, parseGitRemote } from './detectRepository.js';
 import { isEnvTruthy } from './envUtils.js';
 import { TeleportOperationError, toError } from './errors.js';
@@ -40,6 +39,7 @@ import { asSystemPrompt } from './systemPromptType.js';
 import { fetchSession, type GitRepositoryOutcome, type GitSource, getBranchFromSession, getOAuthHeaders, type SessionResource } from './teleport/api.js';
 import { fetchEnvironments } from './teleport/environments.js';
 import { createAndUploadGitBundle } from './teleport/gitBundle.js';
+import { httpGet, httpPost, HttpError, isHttpError } from './fetchHttp.js'
 export type TeleportResult = {
   messages: Message[];
   branchName: string;
@@ -604,7 +604,7 @@ export async function teleportFromSessionsAPI(sessionId: string, orgUUID: string
     const err = toError(error);
 
     // Handle 404 specifically
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
+    if (isHttpError(error) && error.response?.status === 404) {
       logEvent('tengu_teleport_error_session_not_found_404', {
         sessionId: sessionId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
@@ -659,7 +659,7 @@ export async function pollRemoteSessionEvents(sessionId: string, afterId: string
   const sdkMessages: SDKMessage[] = [];
   let cursor = afterId;
   for (let page = 0; page < MAX_EVENT_PAGES; page++) {
-    const eventsResponse = await axios.get(eventsUrl, {
+    const eventsResponse = await httpGet(eventsUrl, {
       headers,
       params: cursor ? {
         after_id: cursor
@@ -878,7 +878,7 @@ export async function teleportToRemote(options: {
         environment_id: options.environmentId
       };
       logForDebugging(`[teleportToRemote] explicit env ${options.environmentId}, ${Object.keys(envVars).length} env vars, ${seedBundleFileId ? `bundle=${seedBundleFileId}` : `source=${gitSource?.url ?? 'none'}@${options.branchName ?? 'default'}`}`);
-      const response = await axios.post(url, requestBody, {
+      const response = await httpPost(url, requestBody, {
         headers,
         signal
       });
@@ -1057,7 +1057,7 @@ export async function teleportToRemote(options: {
       logError(new Error('No environments available for session creation'));
       return null;
     }
-    logForDebugging(`Available environments: ${environments.map(e => `${e.environment_id} (${e.name}, ${e.kind})`).join(', ')}`);
+    if (isDebugMode()) logForDebugging(`Available environments: ${environments.map(e => `${e.environment_id} (${e.name}, ${e.kind})`).join(', ')}`);
 
     // Select environment based on settings, then anthropic_cloud preference, then first available.
     // Prefer anthropic_cloud environments over byoc: anthropic_cloud environments (e.g. "Default")
@@ -1158,10 +1158,10 @@ export async function teleportToRemote(options: {
       session_context: sessionContext,
       environment_id: environmentId
     };
-    logForDebugging(`Creating session with payload: ${jsonStringify(requestBody, null, 2)}`);
+    if (isDebugMode()) logForDebugging(`Creating session with payload: ${jsonStringify(requestBody, null, 2)}`);
 
     // Make API call
-    const response = await axios.post(url, requestBody, {
+    const response = await httpPost(url, requestBody, {
       headers,
       signal
     });
@@ -1209,7 +1209,7 @@ export async function archiveRemoteSession(sessionId: string): Promise<void> {
   };
   const url = `${getOauthConfig().BASE_API_URL}/v1/sessions/${sessionId}/archive`;
   try {
-    const resp = await axios.post(url, {}, {
+    const resp = await httpPost(url, {}, {
       headers,
       timeout: 10000,
       validateStatus: s => s < 500
@@ -1217,7 +1217,7 @@ export async function archiveRemoteSession(sessionId: string): Promise<void> {
     if (resp.status === 200 || resp.status === 409) {
       logForDebugging(`[archiveRemoteSession] archived ${sessionId}`);
     } else {
-      logForDebugging(`[archiveRemoteSession] ${sessionId} failed ${resp.status}: ${jsonStringify(resp.data)}`);
+      if (isDebugMode()) logForDebugging(`[archiveRemoteSession] ${sessionId} failed ${resp.status}: ${jsonStringify(resp.data)}`);
     }
   } catch (err) {
     logError(err);

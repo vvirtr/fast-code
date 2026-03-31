@@ -81,13 +81,11 @@ export function CoordinatorTaskPanel(): React.ReactNode {
  * stays accurate without needing its own tick.
  */
 export function useCoordinatorTaskCount() {
-  const tasks = useAppState(_temp);
-  let t0;
-  t0 = 0;
-  return t0;
+  const count = useAppState(_temp);
+  return count;
 }
-function _temp(s) {
-  return s.tasks;
+function _temp(s: { tasks: AppState['tasks'] }): number {
+  return getVisibleAgentTasks(s.tasks).length;
 }
 function MainLine(t0) {
   const $ = _c(10);

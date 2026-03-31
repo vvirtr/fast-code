@@ -6,7 +6,7 @@ import type { CommandResultDisplay } from 'src/commands.js';
 import { logEvent } from 'src/services/analytics/index.js';
 import { StatusIcon } from '../components/design-system/StatusIcon.js';
 import { Box, render, Text } from '../ink.js';
-import { logForDebugging } from '../utils/debug.js';
+import { isDebugMode, logForDebugging } from '../utils/debug.js';
 import { env } from '../utils/env.js';
 import { errorMessage } from '../utils/errors.js';
 import { checkInstall, cleanupNpmInstallations, cleanupShellAliases, installLatest } from '../utils/nativeInstaller/index.js';
@@ -147,14 +147,14 @@ function Install({
           logForDebugging(`Cleaned up ${removed} npm installation(s)`);
         }
         if (errors.length > 0) {
-          logForDebugging(`Cleanup errors: ${errors.join(', ')}`);
+          if (isDebugMode()) logForDebugging(`Cleanup errors: ${errors.join(', ')}`);
           // Continue despite cleanup errors - native install already succeeded
         }
 
         // Clean up old shell aliases
         const aliasMessages = await cleanupShellAliases();
         if (aliasMessages.length > 0) {
-          logForDebugging(`Shell alias cleanup: ${aliasMessages.map(m => m.message).join('; ')}`);
+          if (isDebugMode()) logForDebugging(`Shell alias cleanup: ${aliasMessages.map(m => m.message).join('; ')}`);
         }
 
         // Log success event

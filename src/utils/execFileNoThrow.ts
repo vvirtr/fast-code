@@ -86,7 +86,7 @@ function getErrorMessage(
 /**
  * execFile, but always resolves (never throws)
  */
-export function execFileNoThrowWithCwd(
+export async function execFileNoThrowWithCwd(
   file: string,
   args: string[],
   {
@@ -105,6 +105,83 @@ export function execFileNoThrowWithCwd(
     maxBuffer: 1_000_000,
   },
 ): Promise<{ stdout: string; stderr: string; code: number; error?: string }> {
+  // Fast path: use Bun.spawn directly to avoid execa overhead
+  if (typeof globalThis.Bun !== 'undefined' && !shell) {
+    try {
+      const spawnOptions: Record<string, unknown> = {
+        cwd: finalCwd,
+        env: finalEnv ? { ...process.env, ...finalEnv } : undefined,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        stdin: finalInput ? new Blob([finalInput]) : (finalStdin ?? 'ignore'),
+      }
+
+      const proc = Bun.spawn([file, ...args], spawnOptions)
+
+      // Handle abort signal
+      if (abortSignal) {
+        if (abortSignal.aborted) {
+          proc.kill()
+          return { stdout: '', stderr: '', code: 1, error: 'aborted' }
+        }
+        abortSignal.addEventListener(
+          'abort',
+          () => {
+            proc.kill()
+          },
+          { once: true },
+        )
+      }
+
+      // Handle timeout
+      let timedOut = false
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      if (finalTimeout > 0) {
+        timeoutId = setTimeout(() => {
+          timedOut = true
+          proc.kill()
+        }, finalTimeout)
+      }
+
+      const [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ])
+
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+
+      if (timedOut) {
+        const error = `timed out after ${finalTimeout}ms`
+        if (finalPreserveOutput) {
+          return { stdout, stderr, code: exitCode ?? 1, error }
+        }
+        return { stdout: '', stderr: '', code: exitCode ?? 1, error }
+      }
+
+      if (exitCode !== 0) {
+        const errorCode = exitCode ?? 1
+        if (finalPreserveOutput) {
+          return {
+            stdout: stdout || '',
+            stderr: stderr || '',
+            code: errorCode,
+            error: String(errorCode),
+          }
+        }
+        return { stdout: '', stderr: '', code: errorCode }
+      }
+
+      return { stdout, stderr, code: 0 }
+    } catch (error) {
+      logError(error)
+      return { stdout: '', stderr: '', code: 1 }
+    }
+  }
+
+  // Fallback to execa for non-Bun runtimes or shell mode
   return new Promise(resolve => {
     // Use execa for cross-platform .bat/.cmd compatibility on Windows
     execa(file, args, {

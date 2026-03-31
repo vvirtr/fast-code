@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getIsRemoteMode } from '../../bootstrap/state.js';
 import { useNotifications } from '../../context/notifications.js';
 import { Text } from '../../ink.js';
-import { logForDebugging } from '../../utils/debug.js';
+import { isDebugMode, logForDebugging } from '../../utils/debug.js';
 import { onPluginsAutoUpdated } from '../../utils/plugins/pluginAutoupdate.js';
 
 /**
@@ -63,7 +63,7 @@ export function usePluginAutoupdateNotification() {
         priority: "low",
         timeoutMs: 10000
       });
-      logForDebugging(`Showing plugin autoupdate notification for: ${pluginNames.join(", ")}`);
+      if (isDebugMode()) logForDebugging(`Showing plugin autoupdate notification for: ${pluginNames.join(", ")}`);
     };
     t4 = [updatedPlugins, addNotification];
     $[3] = addNotification;

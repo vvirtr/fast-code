@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { hasProfileScope, isClaudeAISubscriber } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -8,6 +7,7 @@ import { logError } from '../../utils/log.js'
 import { memoizeWithTTLAsync } from '../../utils/memoize.js'
 import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+import { httpGet } from '../../utils/fetchHttp.js'
 
 type MetricsEnabledResponse = {
   metrics_logging_enabled: boolean
@@ -43,7 +43,7 @@ async function _fetchMetricsEnabled(): Promise<MetricsEnabledResponse> {
   }
 
   const endpoint = `https://api.anthropic.com/api/claude_code/organizations/metrics_enabled`
-  const response = await axios.get<MetricsEnabledResponse>(endpoint, {
+  const response = await httpGet<MetricsEnabledResponse>(endpoint, {
     headers,
     timeout: 5000,
   })

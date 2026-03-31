@@ -8,7 +8,7 @@ import { ConcurrentRoot } from 'react-reconciler/constants.js';
 import { onExit } from 'signal-exit';
 import { flushInteractionTime } from 'src/bootstrap/state.js';
 import { getYogaCounters } from 'src/native-ts/yoga-layout/index.js';
-import { logForDebugging } from 'src/utils/debug.js';
+import { isDebugMode, logForDebugging } from 'src/utils/debug.js';
 import { logError } from 'src/utils/log.js';
 import { format } from 'util';
 import { colorize } from './colorize.js';
@@ -623,7 +623,7 @@ export default class Ink {
         });
         if (isDebugRepaintsEnabled() && patch.debug) {
           const chain = dom.findOwnerChainAtRow(this.rootNode, patch.debug.triggerY);
-          logForDebugging(`[REPAINT] full reset · ${patch.reason} · row ${patch.debug.triggerY}\n` + `  prev: "${patch.debug.prevLine}"\n` + `  next: "${patch.debug.nextLine}"\n` + `  culprit: ${chain.length ? chain.join(' < ') : '(no owner chain captured)'}`, {
+          if (isDebugMode()) logForDebugging(`[REPAINT] full reset · ${patch.reason} · row ${patch.debug.triggerY}\n` + `  prev: "${patch.debug.prevLine}"\n` + `  next: "${patch.debug.nextLine}"\n` + `  culprit: ${chain.length ? chain.join(' < ') : '(no owner chain captured)'}`, {
             level: 'warn'
           });
         }
@@ -1108,7 +1108,7 @@ export default class Ink {
     // correctly. One extra paint of this message, but correct > fast.
     dom.markDirty(el);
     const positions = scanPositions(rendered, this.searchHighlightQuery);
-    logForDebugging(`scanElementSubtree: q='${this.searchHighlightQuery}' ` + `el=${width}x${height}@(${elLeft},${elTop}) n=${positions.length} ` + `[${positions.slice(0, 10).map(p => `${p.row}:${p.col}`).join(',')}` + `${positions.length > 10 ? ',…' : ''}]`);
+    if (isDebugMode()) logForDebugging(`scanElementSubtree: q='${this.searchHighlightQuery}' ` + `el=${width}x${height}@(${elLeft},${elTop}) n=${positions.length} ` + `[${positions.slice(0, 10).map(p => `${p.row}:${p.col}`).join(',')}` + `${positions.length > 10 ? ',…' : ''}]`);
     return positions;
   }
 

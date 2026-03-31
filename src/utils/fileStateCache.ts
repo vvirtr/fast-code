@@ -125,6 +125,156 @@ export function cloneFileStateCache(cache: FileStateCache): FileStateCache {
   return cloned
 }
 
+/**
+ * Copy-on-write wrapper around a parent FileStateCache.
+ *
+ * Reads fall through to the (shared, read-only) parent cache; writes land in a
+ * lightweight overlay Map.  This avoids deep-copying up to 25 MB of cached file
+ * content when forking an agent — the parent data is shared in O(1) and the
+ * child only pays for the entries it actually mutates.
+ *
+ * The `keys()` / `entries()` / `size` / `dump()` / `load()` accessors are
+ * implemented for correctness but are not on the hot path for subagent usage
+ * (only `get`, `set`, `has`, `delete`, `clear` are called via readFileState).
+ */
+export class COWFileStateCache extends FileStateCache {
+  private overlay = new Map<string, FileState>()
+  private deletedKeys = new Set<string>()
+
+  constructor(private parent: FileStateCache) {
+    // The super constructor creates an empty LRU — negligible cost.
+    // We never touch it; all methods are overridden to use the overlay.
+    super(1, 1)
+  }
+
+  override get(key: string): FileState | undefined {
+    const k = normalize(key)
+    if (this.deletedKeys.has(k)) return undefined
+    return this.overlay.get(k) ?? this.parent.get(k)
+  }
+
+  override set(key: string, value: FileState): this {
+    const k = normalize(key)
+    this.deletedKeys.delete(k)
+    this.overlay.set(k, value)
+    return this
+  }
+
+  override has(key: string): boolean {
+    const k = normalize(key)
+    if (this.deletedKeys.has(k)) return false
+    return this.overlay.has(k) || this.parent.has(k)
+  }
+
+  override delete(key: string): boolean {
+    const k = normalize(key)
+    const existed = this.has(key)
+    this.overlay.delete(k)
+    this.deletedKeys.add(k)
+    return existed
+  }
+
+  override clear(): void {
+    this.overlay.clear()
+    this.deletedKeys.clear()
+    // Don't clear parent — it's shared with other consumers
+  }
+
+  override get size(): number {
+    let count = this.overlay.size
+    for (const key of this.parent.keys()) {
+      if (!this.overlay.has(key) && !this.deletedKeys.has(key)) {
+        count++
+      }
+    }
+    return count
+  }
+
+  override get max(): number {
+    return this.parent.max
+  }
+
+  override get maxSize(): number {
+    return this.parent.maxSize
+  }
+
+  override get calculatedSize(): number {
+    // Approximation: overlay size + parent's size for non-overridden entries
+    let bytes = 0
+    for (const value of this.overlay.values()) {
+      bytes += Math.max(1, Buffer.byteLength(value.content))
+    }
+    // Parent calculatedSize is an approximation; the COW child doesn't evict
+    // from the parent so we just report the overlay's own size.
+    return bytes
+  }
+
+  override *keys(): Generator<string> {
+    // Yield overlay keys first
+    for (const key of this.overlay.keys()) {
+      yield key
+    }
+    // Then parent keys that aren't overridden or deleted
+    for (const key of this.parent.keys()) {
+      if (!this.overlay.has(key) && !this.deletedKeys.has(key)) {
+        yield key
+      }
+    }
+  }
+
+  override *entries(): Generator<[string, FileState]> {
+    for (const entry of this.overlay.entries()) {
+      yield entry
+    }
+    for (const [key, value] of this.parent.entries()) {
+      if (!this.overlay.has(key) && !this.deletedKeys.has(key)) {
+        yield [key, value]
+      }
+    }
+  }
+
+  override dump(): ReturnType<LRUCache<string, FileState>['dump']> {
+    // Materialize into a dump-compatible format for interop with cloneFileStateCache
+    const temp = new LRUCache<string, FileState>({
+      max: this.parent.max,
+      maxSize: this.parent.maxSize,
+      sizeCalculation: value => Math.max(1, Buffer.byteLength(value.content)),
+    })
+    // Load parent entries first, then overlay on top
+    for (const [key, value] of this.parent.entries()) {
+      if (!this.deletedKeys.has(key)) {
+        temp.set(key, value)
+      }
+    }
+    for (const [key, value] of this.overlay.entries()) {
+      temp.set(key, value)
+    }
+    return temp.dump()
+  }
+
+  override load(
+    entries: ReturnType<LRUCache<string, FileState>['dump']>,
+  ): void {
+    // Load into overlay — don't touch parent
+    for (const entry of entries) {
+      if (entry[1] !== undefined) {
+        this.overlay.set(entry[0], entry[1])
+      }
+    }
+  }
+}
+
+/**
+ * Create a copy-on-write file state cache backed by an existing parent cache.
+ * Reads fall through to the parent; writes go to a local overlay.
+ * This is O(1) to create vs O(n) for cloneFileStateCache.
+ */
+export function createCOWFileStateCache(
+  parent: FileStateCache,
+): FileStateCache {
+  return new COWFileStateCache(parent)
+}
+
 // Merge two file state caches, with more recent entries (by timestamp) overriding older ones
 export function mergeFileStateCaches(
   first: FileStateCache,

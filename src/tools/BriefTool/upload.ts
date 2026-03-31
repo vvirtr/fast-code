@@ -13,7 +13,6 @@
  */
 
 import { feature } from 'bun:bundle'
-import axios from 'axios'
 import { randomUUID } from 'crypto'
 import { readFile } from 'fs/promises'
 import { basename, extname } from 'path'
@@ -27,6 +26,7 @@ import { getOauthConfig } from '../../constants/oauth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
+import { httpPost } from '../../utils/fetchHttp.js'
 
 // Matches the private_api backend limit
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024
@@ -137,7 +137,7 @@ export async function uploadBriefAttachment(
     ])
 
     try {
-      const response = await axios.post(url, body, {
+      const response = await httpPost(url, body, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': `multipart/form-data; boundary=${boundary}`,

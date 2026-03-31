@@ -1,4 +1,3 @@
-import axios, { type AxiosError } from 'axios'
 import type { UUID } from 'crypto'
 import { getOauthConfig } from '../../constants/oauth.js'
 import type { Entry, TranscriptMessage } from '../../types/logs.js'
@@ -11,6 +10,7 @@ import { getSessionIngressAuthToken } from '../../utils/sessionIngressAuth.js'
 import { sleep } from '../../utils/sleep.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { getOAuthHeaders } from '../../utils/teleport/api.js'
+import { httpGet, httpPut, HttpError } from '../../utils/fetchHttp.js'
 
 interface SessionIngressError {
   error?: {
@@ -74,7 +74,7 @@ async function appendSessionLogImpl(
         requestHeaders['Last-Uuid'] = lastUuid
       }
 
-      const response = await axios.put(url, entry, {
+      const response = await httpPut(url, entry, {
         headers: requestHeaders,
         validateStatus: status => status < 500,
       })
@@ -91,7 +91,7 @@ async function appendSessionLogImpl(
         // Check if our entry was actually stored (server returned 409 but entry exists)
         // This handles the scenario where entry was stored but client received an error
         // response, causing lastUuidMap to be stale
-        const serverLastUuid = response.headers['x-last-uuid']
+        const serverLastUuid = response.headers.get('x-last-uuid')
         if (serverLastUuid === entry.uuid) {
           // Our entry IS the last entry on server - it was stored successfully previously
           lastUuidMap.set(sessionId, entry.uuid)
@@ -157,10 +157,10 @@ async function appendSessionLogImpl(
       })
     } catch (error) {
       // Network errors, 5xx - retryable
-      const axiosError = error as AxiosError<SessionIngressError>
-      logError(new Error(`Error persisting session log: ${axiosError.message}`))
+      const httpError = error as HttpError
+      logError(new Error(`Error persisting session log: ${httpError.message}`))
       logForDiagnosticsNoPII('error', 'session_persist_fail_status', {
-        status: axiosError.status,
+        status: httpError.response?.status,
         attempt,
       })
     }
@@ -318,14 +318,14 @@ export async function getTeleportEvents(
 
     let response
     try {
-      response = await axios.get<TeleportEventsResponse>(baseUrl, {
+      response = await httpGet<TeleportEventsResponse>(baseUrl, {
         headers,
         params,
         timeout: 20000,
         validateStatus: status => status < 500,
       })
     } catch (e) {
-      const err = e as AxiosError
+      const err = e as HttpError
       logError(new Error(`Teleport events fetch failed: ${err.message}`))
       logForDiagnosticsNoPII('error', 'teleport_events_fetch_fail')
       return null
@@ -423,7 +423,7 @@ async function fetchSessionLogsFromUrl(
   headers: Record<string, string>,
 ): Promise<Entry[] | null> {
   try {
-    const response = await axios.get(url, {
+    const response = await httpGet(url, {
       headers,
       timeout: 20000,
       validateStatus: status => status < 500,
@@ -475,10 +475,10 @@ async function fetchSessionLogsFromUrl(
     })
     return null
   } catch (error) {
-    const axiosError = error as AxiosError<SessionIngressError>
-    logError(new Error(`Error fetching session logs: ${axiosError.message}`))
+    const httpError = error as HttpError
+    logError(new Error(`Error fetching session logs: ${httpError.message}`))
     logForDiagnosticsNoPII('error', 'session_get_fail_status', {
-      status: axiosError.status,
+      status: httpError.response?.status,
     })
     return null
   }

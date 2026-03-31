@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { getOauthConfig, OAUTH_BETA_HEADER } from 'src/constants/oauth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import {
@@ -34,6 +33,7 @@ import {
   updateSettingsForSource,
 } from './settings/settings.js'
 import { createSignal } from './signal.js'
+import { httpGet, HttpError, isHttpError } from './fetchHttp.js'
 
 export function isFastModeEnabled(): boolean {
   return !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FAST_MODE)
@@ -376,7 +376,7 @@ async function fetchFastModeStatus(
         }
       : { 'x-api-key': auth.apiKey }
 
-  const response = await axios.get<FastModeResponse>(endpoint, { headers })
+  const response = await httpGet<FastModeResponse>(endpoint, { headers })
   return response.data
 }
 
@@ -465,7 +465,7 @@ export async function prefetchFastModeStatus(): Promise<void> {
         status = await fetchWithCurrentAuth()
       } catch (err) {
         const isAuthError =
-          axios.isAxiosError(err) &&
+          isHttpError(err) &&
           (err.response?.status === 401 ||
             (err.response?.status === 403 &&
               typeof err.response?.data === 'string' &&

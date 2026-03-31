@@ -188,12 +188,12 @@ export function Usage(): React.ReactNode {
       setUtilization(data);
     } catch (err) {
       logError(err as Error);
-      const axiosError = err as {
+      const httpError = err as {
         response?: {
           data?: unknown;
         };
       };
-      const responseBody = axiosError.response?.data ? jsonStringify(axiosError.response.data) : undefined;
+      const responseBody = httpError.response?.data ? jsonStringify(httpError.response.data) : undefined;
       setError(responseBody ? `Failed to load usage data: ${responseBody}` : 'Failed to load usage data');
     } finally {
       setIsLoading(false);

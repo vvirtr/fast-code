@@ -1,8 +1,8 @@
-import axios from 'axios'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getOAuthHeaders, prepareApiRequest } from '../../utils/teleport/api.js'
 import { fetchEnvironments } from '../../utils/teleport/environments.js'
+import { httpPost, HttpError, isHttpError } from '../../utils/fetchHttp.js'
 
 const CCR_BYOC_BETA_HEADER = 'ccr-byoc-2025-07-29'
 
@@ -69,7 +69,7 @@ export async function importGithubToken(
   }
 
   try {
-    const response = await axios.post<ImportTokenResult>(
+    const response = await httpPost<ImportTokenResult>(
       url,
       { token: token.reveal() },
       { headers, timeout: 15000, validateStatus: () => true },
@@ -88,7 +88,7 @@ export async function importGithubToken(
     })
     return { ok: false, error: { kind: 'server', status: response.status } }
   } catch (err) {
-    if (axios.isAxiosError(err)) {
+    if (isHttpError(err)) {
       // err.config.data would contain the POST body with the raw token.
       // Do not include it in any log. The error code alone is enough.
       logForDebugging(`import-token network error: ${err.code ?? 'unknown'}`, {
@@ -138,7 +138,7 @@ export async function createDefaultEnvironment(): Promise<boolean> {
   }
 
   try {
-    const response = await axios.post(
+    const response = await httpPost(
       url,
       {
         name: 'Default',

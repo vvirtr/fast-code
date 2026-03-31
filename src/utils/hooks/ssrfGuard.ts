@@ -1,6 +1,11 @@
-import type { AddressFamily, LookupAddress as AxiosLookupAddress } from 'axios'
 import { lookup as dnsLookup } from 'dns'
 import { isIP } from 'net'
+
+/** Address family (replaces axios AddressFamily type) */
+type AddressFamily = 4 | 6
+
+/** Lookup result (replaces axios LookupAddress type) */
+type LookupAddress = { address: string; family: AddressFamily }
 
 /**
  * SSRF guard for HTTP hooks.
@@ -218,7 +223,7 @@ export function ssrfGuardedLookup(
   options: object,
   callback: (
     err: Error | null,
-    address: AxiosLookupAddress | AxiosLookupAddress[],
+    address: LookupAddress | LookupAddress[],
     family?: AddressFamily,
   ) => void,
 ): void {

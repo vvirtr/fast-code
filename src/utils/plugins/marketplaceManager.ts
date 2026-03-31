@@ -18,7 +18,6 @@
  *                   └── marketplace.json
  */
 
-import axios from 'axios'
 import { writeFile } from 'fs/promises'
 import { isEqual, memoize } from '../lodashNative.js'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'path'
@@ -74,6 +73,7 @@ import {
 } from './pluginDirectories.js'
 import { parsePluginIdentifier } from './pluginIdentifier.js'
 import { deletePluginOptions } from './pluginOptionsStorage.js'
+import { httpGet, HttpError, isHttpError } from '../fetchHttp.js'
 import {
   isLocalMarketplaceSource,
   type KnownMarketplace,
@@ -1278,7 +1278,7 @@ async function cacheMarketplaceFromUrl(
   let response
   const fetchStarted = performance.now()
   try {
-    response = await axios.get(url, {
+    response = await httpGet(url, {
       timeout: 10000,
       headers,
     })
@@ -1290,7 +1290,7 @@ async function cacheMarketplaceFromUrl(
       performance.now() - fetchStarted,
       classifyFetchError(error),
     )
-    if (axios.isAxiosError(error)) {
+    if (isHttpError(error)) {
       if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
         throw new Error(
           `Could not connect to ${redactedUrl}. Please check your internet connection and verify the URL is correct.\n\nTechnical details: ${error.message}`,

@@ -24,7 +24,6 @@ import {
   OAuthTokensSchema,
 } from '@modelcontextprotocol/sdk/shared/auth.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
-import axios from 'axios'
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { mkdir } from 'fs/promises'
 import { createServer, type Server } from 'http'
@@ -49,6 +48,7 @@ import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpHTTPServerConfig, McpSSEServerConfig } from './types.js'
 import { getLoggingSafeMcpBaseUrl } from './utils.js'
 import { performCrossAppAccess, XaaTokenExchangeError } from './xaa.js'
+import { httpPost, HttpError, isHttpError } from '../../utils/fetchHttp.js'
 import {
   acquireIdpIdToken,
   clearIdpIdToken,
@@ -428,12 +428,12 @@ async function revokeToken({
   }
 
   try {
-    await axios.post(endpoint, params, { headers })
+    await httpPost(endpoint, params, { headers })
     logMCPDebug(serverName, `Successfully revoked ${tokenTypeHint}`)
   } catch (error: unknown) {
     // Fallback for non-RFC-7009-compliant servers that require Bearer auth
     if (
-      axios.isAxiosError(error) &&
+      isHttpError(error) &&
       error.response?.status === 401 &&
       accessToken
     ) {
@@ -445,7 +445,7 @@ async function revokeToken({
       // switches to Bearer — clear any client creds from the body.
       params.delete('client_id')
       params.delete('client_secret')
-      await axios.post(endpoint, params, {
+      await httpPost(endpoint, params, {
         headers: { ...headers, Authorization: `Bearer ${accessToken}` },
       })
       logMCPDebug(

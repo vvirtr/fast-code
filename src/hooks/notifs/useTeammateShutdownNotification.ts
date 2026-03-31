@@ -51,28 +51,38 @@ function makeShutdownNotif(count: number): Notification {
  * Uses fold() to combine repeated events into a single notification
  * like "3 agents spawned" or "2 agents shut down".
  */
+// Selector that extracts only teammate task ids and statuses.
+// Returns a JSON-serialized string so useSyncExternalStore's strict equality
+// check avoids re-renders when non-teammate tasks mutate.
+function selectTeammateStatuses(s: { tasks: Record<string, { type?: string; status?: string }> }): string {
+  const entries: [string, string][] = []
+  for (const [id, task] of Object.entries(s.tasks)) {
+    if (isInProcessTeammateTask(task)) {
+      entries.push([id, task.status ?? ''])
+    }
+  }
+  return JSON.stringify(entries)
+}
+
 export function useTeammateLifecycleNotification(): void {
-  const tasks = useAppState(s => s.tasks)
+  const teammateStatusesJson = useAppState(selectTeammateStatuses)
   const { addNotification } = useNotifications()
   const seenRunningRef = useRef<Set<string>>(new Set())
   const seenCompletedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (getIsRemoteMode()) return
-    for (const [id, task] of Object.entries(tasks)) {
-      if (!isInProcessTeammateTask(task)) {
-        continue
-      }
-
-      if (task.status === 'running' && !seenRunningRef.current.has(id)) {
+    const entries: [string, string][] = JSON.parse(teammateStatusesJson)
+    for (const [id, status] of entries) {
+      if (status === 'running' && !seenRunningRef.current.has(id)) {
         seenRunningRef.current.add(id)
         addNotification(makeSpawnNotif(1))
       }
 
-      if (task.status === 'completed' && !seenCompletedRef.current.has(id)) {
+      if (status === 'completed' && !seenCompletedRef.current.has(id)) {
         seenCompletedRef.current.add(id)
         addNotification(makeShutdownNotif(1))
       }
     }
-  }, [tasks, addNotification])
+  }, [teammateStatusesJson, addNotification])
 }

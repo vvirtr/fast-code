@@ -53,7 +53,8 @@ export function MCPRemoteServerMenu({
   } = useTerminalSize();
   const [isAuthenticating, setIsAuthenticating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const mcp = useAppState(s => s.mcp);
+  const mcpCommands = useAppState(s => s.mcp.commands);
+  const mcpResources = useAppState(s => s.mcp.resources);
   const setAppState = useSetAppState();
   const [authorizationUrl, setAuthorizationUrl] = React.useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -210,7 +211,7 @@ export function MCPRemoteServerMenu({
   const capitalizedServerName = capitalize(String(server.name));
 
   // Count MCP prompts for this server (skills are shown in /skills, not here)
-  const serverCommandsCount = filterMcpPromptsByServer(mcp.commands, server.name).length;
+  const serverCommandsCount = filterMcpPromptsByServer(mcpCommands, server.name).length;
   const toggleMcpServer = useMcpToggleEnabled();
   const handleClaudeAIAuth = React.useCallback(async () => {
     const claudeAiBaseUrl = getOauthConfig().CLAUDE_AI_ORIGIN;
@@ -569,7 +570,7 @@ export function MCPRemoteServerMenu({
             <Text dimColor>{describeMcpConfigFilePath(server.scope)}</Text>
           </Box>
 
-          {server.client.type === 'connected' && <CapabilitiesSection serverToolsCount={serverToolsCount} serverPromptsCount={serverCommandsCount} serverResourcesCount={mcp.resources[server.name]?.length || 0} />}
+          {server.client.type === 'connected' && <CapabilitiesSection serverToolsCount={serverToolsCount} serverPromptsCount={serverCommandsCount} serverResourcesCount={mcpResources[server.name]?.length || 0} />}
 
           {server.client.type === 'connected' && serverToolsCount > 0 && <Box>
               <Text bold>Tools: </Text>

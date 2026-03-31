@@ -37,7 +37,8 @@ export function MCPStdioServerMenu({
 }: Props): React.ReactNode {
   const [theme] = useTheme();
   const exitState = useExitOnCtrlCDWithKeybindings();
-  const mcp = useAppState(s => s.mcp);
+  const mcpCommands = useAppState(s => s.mcp.commands);
+  const mcpResources = useAppState(s => s.mcp.resources);
   const reconnectMcpServer = useMcpReconnect();
   const toggleMcpServer = useMcpToggleEnabled();
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -55,7 +56,7 @@ export function MCPStdioServerMenu({
   const capitalizedServerName = capitalize(String(server.name));
 
   // Count MCP prompts for this server (skills are shown in /skills, not here)
-  const serverCommandsCount = filterMcpPromptsByServer(mcp.commands, server.name).length;
+  const serverCommandsCount = filterMcpPromptsByServer(mcpCommands, server.name).length;
   const menuOptions = [];
 
   // Only show "View tools" if server is not disabled and has tools
@@ -129,7 +130,7 @@ export function MCPStdioServerMenu({
             </Text>
           </Box>
 
-          {server.client.type === 'connected' && <CapabilitiesSection serverToolsCount={serverToolsCount} serverPromptsCount={serverCommandsCount} serverResourcesCount={mcp.resources[server.name]?.length || 0} />}
+          {server.client.type === 'connected' && <CapabilitiesSection serverToolsCount={serverToolsCount} serverPromptsCount={serverCommandsCount} serverResourcesCount={mcpResources[server.name]?.length || 0} />}
 
           {server.client.type === 'connected' && serverToolsCount > 0 && <Box>
               <Text bold>Tools: </Text>

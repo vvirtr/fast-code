@@ -12,7 +12,7 @@ import {
   type ToolDef,
   type Tools,
 } from '../../Tool.js'
-import { logForDebugging } from '../../utils/debug.js'
+import { isDebugMode, logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { escapeRegExp } from '../../utils/stringUtils.js'
 import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
@@ -395,11 +395,11 @@ export const ToolSearchTool = buildTool({
       }
 
       if (missing.length > 0) {
-        logForDebugging(
+        if (isDebugMode()) logForDebugging(
           `ToolSearchTool: partial select — found: ${found.join(', ')}, missing: ${missing.join(', ')}`,
         )
       } else {
-        logForDebugging(`ToolSearchTool: selected ${found.join(', ')}`)
+        if (isDebugMode()) logForDebugging(`ToolSearchTool: selected ${found.join(', ')}`)
       }
       logSearchOutcome(found, 'select')
       return buildSearchResult(found, query, deferredTools.length)

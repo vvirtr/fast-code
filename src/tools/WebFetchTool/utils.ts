@@ -1,4 +1,3 @@
-import axios, { type AxiosResponse } from 'axios'
 import { LRUCache } from 'lru-cache'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -6,6 +5,11 @@ import {
 } from '../../services/analytics/index.js'
 import { queryHaiku } from '../../services/api/claude.js'
 import { AbortError } from '../../utils/errors.js'
+import {
+  httpGet,
+  HttpError,
+  type HttpResponse,
+} from '../../utils/fetchHttp.js'
 import { getWebFetchUserAgent } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
 import {
@@ -180,9 +184,9 @@ export async function checkDomainBlocklist(
     return { status: 'allowed' }
   }
   try {
-    const response = await axios.get(
+    const response = await httpGet<{ can_fetch?: boolean }>(
       `https://api.anthropic.com/api/web/domain_info?domain=${encodeURIComponent(domain)}`,
-      { timeout: DOMAIN_CHECK_TIMEOUT_MS },
+      { timeout: DOMAIN_CHECK_TIMEOUT_MS, validateStatus: () => true },
     )
     if (response.status === 200) {
       if (response.data.can_fetch === true) {
@@ -264,12 +268,12 @@ export async function getWithPermittedRedirects(
   signal: AbortSignal,
   redirectChecker: (originalUrl: string, redirectUrl: string) => boolean,
   depth = 0,
-): Promise<AxiosResponse<ArrayBuffer> | RedirectInfo> {
+): Promise<HttpResponse<ArrayBuffer> | RedirectInfo> {
   if (depth > MAX_REDIRECTS) {
     throw new Error(`Too many redirects (exceeded ${MAX_REDIRECTS})`)
   }
   try {
-    return await axios.get(url, {
+    return await httpGet<ArrayBuffer>(url, {
       signal,
       timeout: FETCH_TIMEOUT_MS,
       maxRedirects: 0,
@@ -282,11 +286,11 @@ export async function getWithPermittedRedirects(
     })
   } catch (error) {
     if (
-      axios.isAxiosError(error) &&
+      error instanceof HttpError &&
       error.response &&
       [301, 302, 307, 308].includes(error.response.status)
     ) {
-      const redirectLocation = error.response.headers.location
+      const redirectLocation = error.response.headers.get('location')
       if (!redirectLocation) {
         throw new Error('Redirect missing Location header')
       }
@@ -316,9 +320,9 @@ export async function getWithPermittedRedirects(
     // Detect egress proxy blocks: the proxy returns 403 with
     // X-Proxy-Error: blocked-by-allowlist when egress is restricted
     if (
-      axios.isAxiosError(error) &&
+      error instanceof HttpError &&
       error.response?.status === 403 &&
-      error.response.headers['x-proxy-error'] === 'blocked-by-allowlist'
+      error.response.headers.get('x-proxy-error') === 'blocked-by-allowlist'
     ) {
       const hostname = new URL(url).hostname
       throw new EgressBlockedError(hostname)
@@ -329,7 +333,7 @@ export async function getWithPermittedRedirects(
 }
 
 function isRedirectInfo(
-  response: AxiosResponse<ArrayBuffer> | RedirectInfo,
+  response: HttpResponse<ArrayBuffer> | RedirectInfo,
 ): response is RedirectInfo {
   return 'type' in response && response.type === 'redirect'
 }
@@ -426,11 +430,11 @@ export async function getURLMarkdownContent(
   }
 
   const rawBuffer = Buffer.from(response.data)
-  // Release the axios-held ArrayBuffer copy; rawBuffer owns the bytes now.
+  // Release the fetch-held ArrayBuffer copy; rawBuffer owns the bytes now.
   // This lets GC reclaim up to MAX_HTTP_CONTENT_LENGTH (10MB) before Turndown
   // builds its DOM tree (which can be 3-5x the HTML size).
   ;(response as { data: unknown }).data = null
-  const contentType = response.headers['content-type'] ?? ''
+  const contentType = response.headers.get('content-type') ?? ''
 
   // Binary content: save raw bytes to disk with a proper extension so Claude
   // can inspect the file later. We still fall through to the utf-8 decode +

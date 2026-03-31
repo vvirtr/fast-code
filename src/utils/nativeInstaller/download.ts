@@ -7,7 +7,6 @@
  */
 
 import { feature } from 'bun:bundle'
-import axios from 'axios'
 import { createHash } from 'crypto'
 import { chmod, writeFile } from 'fs/promises'
 import { join } from 'path'
@@ -21,6 +20,7 @@ import { logError } from '../log.js'
 import { sleep } from '../sleep.js'
 import { jsonStringify, writeFileSync_DEPRECATED } from '../slowOperations.js'
 import { getBinaryName, getPlatform } from './installer.js'
+import { httpGet, HttpError, isHttpError } from '../fetchHttp.js'
 
 const GCS_BUCKET_URL =
   'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases'
@@ -78,7 +78,7 @@ export async function getLatestVersionFromBinaryRepo(
 ): Promise<string> {
   const startTime = Date.now()
   try {
-    const response = await axios.get(`${baseUrl}/${channel}`, {
+    const response = await httpGet(`${baseUrl}/${channel}`, {
       timeout: 30000,
       responseType: 'text',
       ...authConfig,
@@ -92,7 +92,7 @@ export async function getLatestVersionFromBinaryRepo(
     const latencyMs = Date.now() - startTime
     const errorMessage = error instanceof Error ? error.message : String(error)
     let httpStatus: number | undefined
-    if (axios.isAxiosError(error) && error.response) {
+    if (isHttpError(error) && error.response) {
       httpStatus = error.response.status
     }
 
@@ -318,22 +318,19 @@ async function downloadAndVerifyBinary(
       // Start the stall timer before the request
       resetStallTimer()
 
-      const response = await axios.get(binaryUrl, {
+      const response = await httpGet<ArrayBuffer>(binaryUrl, {
         timeout: 5 * 60000, // 5 minute total timeout
         responseType: 'arraybuffer',
         signal: controller.signal,
-        onDownloadProgress: () => {
-          // Reset stall timer on each chunk of data received
-          resetStallTimer()
-        },
         ...requestConfig,
       })
 
       clearStallTimer()
 
       // Verify checksum
+      const buf = Buffer.from(response.data)
       const hash = createHash('sha256')
-      hash.update(response.data)
+      hash.update(buf)
       const actualChecksum = hash.digest('hex')
 
       if (actualChecksum !== expectedChecksum) {
@@ -343,7 +340,7 @@ async function downloadAndVerifyBinary(
       }
 
       // Write binary to disk
-      await writeFile(binaryPath, Buffer.from(response.data))
+      await writeFile(binaryPath, buf)
       await chmod(binaryPath, 0o755)
 
       // Success - return early
@@ -351,8 +348,8 @@ async function downloadAndVerifyBinary(
     } catch (error) {
       clearStallTimer()
 
-      // Check if this was a stall timeout (axios wraps abort signals in CanceledError)
-      const isStallTimeout = axios.isCancel(error)
+      // Check if this was a stall timeout (fetch throws AbortError on signal abort)
+      const isStallTimeout = error instanceof DOMException && error.name === 'AbortError'
 
       if (isStallTimeout) {
         lastError = new StallTimeoutError()
@@ -403,7 +400,7 @@ export async function downloadVersionFromBinaryRepo(
   // Fetch manifest to get checksum
   let manifest
   try {
-    const manifestResponse = await axios.get(
+    const manifestResponse = await httpGet(
       `${baseUrl}/${version}/manifest.json`,
       {
         timeout: 10000,
@@ -416,7 +413,7 @@ export async function downloadVersionFromBinaryRepo(
     const latencyMs = Date.now() - startTime
     const errorMessage = error instanceof Error ? error.message : String(error)
     let httpStatus: number | undefined
-    if (axios.isAxiosError(error) && error.response) {
+    if (isHttpError(error) && error.response) {
       httpStatus = error.response.status
     }
 
@@ -467,7 +464,7 @@ export async function downloadVersionFromBinaryRepo(
     const latencyMs = Date.now() - startTime
     const errorMessage = error instanceof Error ? error.message : String(error)
     let httpStatus: number | undefined
-    if (axios.isAxiosError(error) && error.response) {
+    if (isHttpError(error) && error.response) {
       httpStatus = error.response.status
     }
 

@@ -201,7 +201,10 @@ const MAX_JSONL_READ_BYTES = 100 * 1024 * 1024
 export async function readJSONLFile<T>(filePath: string): Promise<T[]> {
   const { size } = await stat(filePath)
   if (size <= MAX_JSONL_READ_BYTES) {
-    return parseJSONL<T>(await readFile(filePath))
+    const data = typeof globalThis.Bun !== 'undefined'
+      ? await Bun.file(filePath).text()
+      : await readFile(filePath)
+    return parseJSONL<T>(data)
   }
   await using fd = await open(filePath, 'r')
   const buf = Buffer.allocUnsafe(MAX_JSONL_READ_BYTES)

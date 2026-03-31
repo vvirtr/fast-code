@@ -7,7 +7,7 @@ import { decodeJwtExpiry } from '../../bridge/jwtUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { errorMessage, getErrnoCode } from '../../utils/errors.js'
-import { createAxiosInstance } from '../../utils/proxy.js'
+import { createHttpClient } from '../../utils/proxy.js'
 import {
   registerSessionActivityCallback,
   unregisterSessionActivityCallback,
@@ -270,7 +270,7 @@ export class CCRClient {
   private currentState: SessionState | null = null
   private readonly sessionBaseUrl: string
   private readonly sessionId: string
-  private readonly http = createAxiosInstance({ keepAlive: true })
+  private readonly http = createHttpClient({ keepAlive: true })
 
   // stream_event delay buffer — accumulates content deltas for up to
   // STREAM_EVENT_FLUSH_INTERVAL_MS before enqueueing (reduces POST count
@@ -621,7 +621,7 @@ export class CCRClient {
         status: response.status,
       })
       if (response.status === 429) {
-        const raw = response.headers?.['retry-after']
+        const raw = response.headers?.get('retry-after')
         const seconds = typeof raw === 'string' ? parseInt(raw, 10) : NaN
         if (!isNaN(seconds) && seconds >= 0) {
           return { ok: false, retryAfterMs: seconds * 1000 }

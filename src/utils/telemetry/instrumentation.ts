@@ -49,7 +49,7 @@ import { getPlatform, getWslVersion } from 'src/utils/platform.js'
 
 import { getCACertificates } from '../caCerts.js'
 import { registerCleanup } from '../cleanupRegistry.js'
-import { getHasFormattedOutput, logForDebugging } from '../debug.js'
+import { getHasFormattedOutput, isDebugMode, logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { errorMessage } from '../errors.js'
 import { getMTLSConfig } from '../mtls.js'
@@ -147,7 +147,7 @@ async function getOtlpReaders() {
           // The console exporter is for debugging, so console output is intentional here
 
           logForDebugging('\n=== Resource Attributes ===')
-          logForDebugging(jsonStringify(metrics.resource.attributes))
+          if (isDebugMode()) logForDebugging(jsonStringify(metrics.resource.attributes))
           logForDebugging('===========================\n')
         }
 

@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { getOauthConfig } from '../../constants/oauth.js'
 import {
   getClaudeAIOAuthTokens,
@@ -8,6 +7,7 @@ import {
 import { getAuthHeaders } from '../../utils/http.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
+import { httpGet } from '../../utils/fetchHttp.js'
 
 export type RateLimit = {
   utilization: number | null // a percentage from 0 to 100
@@ -54,7 +54,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
 
   const url = `${getOauthConfig().BASE_API_URL}/api/oauth/usage`
 
-  const response = await axios.get<Utilization>(url, {
+  const response = await httpGet<Utilization>(url, {
     headers,
     timeout: 5000, // 5 second timeout
   })
