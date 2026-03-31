@@ -1,18 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
     <linearGradient id="bolt" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#b4d8ff;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#93c5fd;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7ab8f5;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#b4d8ff"/>
+      <stop offset="50%" style="stop-color:#93c5fd"/>
+      <stop offset="100%" style="stop-color:#7ab8f5"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
   <rect width="120" height="120" rx="24" fill="#1a1a2e"/>
-  <path d="M68 16L38 58h20L42 104l40-50H60L78 16z" fill="url(#bolt)" filter="url(#glow)"/>
+  <!-- Block-char style lightning bolt matching Clawd's aesthetic -->
+  <text x="60" y="38" text-anchor="middle" fill="url(#bolt)" font-family="monospace" font-size="18" font-weight="bold">&#x2593;&#x2593;&#x2593;</text>
+  <text x="52" y="54" text-anchor="middle" fill="url(#bolt)" font-family="monospace" font-size="18" font-weight="bold">&#x2593;&#x2593;</text>
+  <text x="60" y="70" text-anchor="middle" fill="url(#bolt)" font-family="monospace" font-size="18" font-weight="bold">&#x2588;&#x2588;&#x2588;&#x2588;</text>
+  <text x="68" y="86" text-anchor="middle" fill="url(#bolt)" font-family="monospace" font-size="18" font-weight="bold">&#x2593;&#x2593;</text>
+  <text x="60" y="102" text-anchor="middle" fill="url(#bolt)" font-family="monospace" font-size="18" font-weight="bold">&#x2593;</text>
 </svg>
