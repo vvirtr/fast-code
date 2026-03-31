@@ -81,7 +81,7 @@ export function CondensedLogo() {
   const truncatedCwd = truncatePath(cwd, Math.max(cwdAvailableWidth, 10));
   let t4;
   if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = <Box flexDirection="row" gap={0}>{isFullscreenEnvEnabled() ? <AnimatedClawd /> : <Clawd />}<Box flexDirection="column" justifyContent="center"><Text color="clawd_body">{'\u2593\u2593'}{'\n'}{'\u2593\u2593\u2593'}{'\n'}{'\u2593\u2593'}</Text></Box></Box>;
+    t4 = isFullscreenEnvEnabled() ? <AnimatedClawd /> : <Clawd />;
     $[7] = t4;
   } else {
     t4 = $[7];
