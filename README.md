@@ -1,5 +1,13 @@
 # Fast Code
 
+<p align="center">
+  <img src="logo.svg" width="80" alt="Fast Code">
+</p>
+
+<p align="center">
+  <img src="cover.svg" width="700" alt="Fast Code terminal">
+</p>
+
 Optimized fork of Claude Code 2.1.88. Same functionality, smaller bundle, lower memory footprint.
 
 ## Benchmarks
