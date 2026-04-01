@@ -4,7 +4,7 @@
   <img src="cover2.svg" width="700" alt="Fast Code terminal">
 </p>
 
-Optimized fork of Claude Code 2.1.88. Same functionality, smaller bundle, lower memory footprint.
+Optimized fork of Claude Code 2.1.89. Same functionality, smaller bundle, lower memory footprint.
 
 ## Benchmarks
 
@@ -38,7 +38,7 @@ fast                          # interactive
 fast -p "your prompt"         # non-interactive
 fast --model sonnet           # pick model
 fast -c                       # continue last session
-fast --version                # 2.1.88-fast (Fast Code)
+fast --version                # 2.1.89-fast (Fast Code)
 ```
 
 Auth: set `ANTHROPIC_API_KEY` or run `fast auth login`.
