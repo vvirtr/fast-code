@@ -33,10 +33,10 @@ export function WelcomeV2() {
       t2 = <Text>{"                                                          "}</Text>;
       t3 = <Text>{"                                                          "}</Text>;
       t4 = <Text>{"                                                          "}</Text>;
-      t5 = <Text>{"            \u2591\u2591\u2591\u2591\u2591\u2591                                        "}</Text>;
-      t6 = <Text>{"    \u2591\u2591\u2591   \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591                                      "}</Text>;
-      t7 = <Text>{"   \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591                                    "}</Text>;
-      t8 = <Text>{"                                                          "}</Text>;
+      t5 = <Text>{"                                                          "}</Text>;
+      t6 = <Text>{"        "}<Text color="claude">{"  \u2593\u2593\u2593"}</Text>{"                                           "}</Text>;
+      t7 = <Text>{"        "}<Text color="claude">{" \u2593\u2593"}</Text>{"                                              "}</Text>;
+      t8 = <Text>{"        "}<Text color="claude">{"\u2588\u2588\u2588\u2588"}</Text>{"                                            "}</Text>;
       $[2] = t0;
       $[3] = t1;
       $[4] = t2;
@@ -59,7 +59,7 @@ export function WelcomeV2() {
     }
     let t9;
     if ($[11] === Symbol.for("react.memo_cache_sentinel")) {
-      t9 = <Text><Text dimColor={true}>{"                           \u2591\u2591\u2591\u2591"}</Text><Text>{"                     \u2588\u2588    "}</Text></Text>;
+      t9 = <Text>{"        "}<Text color="claude">{"  \u2593\u2593"}</Text>{"                                             "}</Text>;
       $[11] = t9;
     } else {
       t9 = $[11];
@@ -67,8 +67,8 @@ export function WelcomeV2() {
     let t10;
     let t11;
     if ($[12] === Symbol.for("react.memo_cache_sentinel")) {
-      t10 = <Text><Text dimColor={true}>{"                         \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591"}</Text><Text>{"               \u2588\u2588\u2592\u2592\u2588\u2588  "}</Text></Text>;
-      t11 = <Text>{"                                            \u2592\u2592      \u2588\u2588   \u2592"}</Text>;
+      t10 = <Text>{"                                                          "}</Text>;
+      t11 = <Text>{"                                                          "}</Text>;
       $[12] = t10;
       $[13] = t11;
     } else {
@@ -77,28 +77,28 @@ export function WelcomeV2() {
     }
     let t12;
     if ($[14] === Symbol.for("react.memo_cache_sentinel")) {
-      t12 = <Text>{"      "}<Text color="clawd_body"> █████████ </Text>{"                         \u2592\u2592\u2591\u2591\u2592\u2592      \u2592 \u2592\u2592"}</Text>;
+      t12 = <Text>{"                                                          "}</Text>;
       $[14] = t12;
     } else {
       t12 = $[14];
     }
     let t13;
     if ($[15] === Symbol.for("react.memo_cache_sentinel")) {
-      t13 = <Text>{"      "}<Text color="clawd_body" backgroundColor="clawd_background">██▄█████▄██</Text>{"                           \u2592\u2592         \u2592\u2592 "}</Text>;
+      t13 = <Text>{"                                                          "}</Text>;
       $[15] = t13;
     } else {
       t13 = $[15];
     }
     let t14;
     if ($[16] === Symbol.for("react.memo_cache_sentinel")) {
-      t14 = <Text>{"      "}<Text color="clawd_body"> █████████ </Text>{"                          \u2591          \u2592   "}</Text>;
+      t14 = <Text>{"                                                          "}</Text>;
       $[16] = t14;
     } else {
       t14 = $[16];
     }
     let t15;
     if ($[17] === Symbol.for("react.memo_cache_sentinel")) {
-      t15 = <Box width={WELCOME_V2_WIDTH}><Text>{t0}{t1}{t2}{t3}{t4}{t5}{t6}{t7}{t8}{t9}{t10}{t11}{t12}{t13}{t14}<Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}<Text color="clawd_body">{"\u2588 \u2588   \u2588 \u2588"}</Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2591\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2592\u2026\u2026\u2026\u2026"}</Text></Text></Box>;
+      t15 = <Box width={WELCOME_V2_WIDTH}><Text>{t0}{t1}{t2}{t3}{t4}{t5}{t6}{t7}{t8}{t9}{t10}{t11}{t12}{t13}{t14}<Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}</Text></Text></Box>;
       $[17] = t15;
     } else {
       t15 = $[17];
@@ -116,10 +116,10 @@ export function WelcomeV2() {
     t0 = <Text><Text color="claude">{"Welcome to Fast Code"} </Text><Text dimColor={true}>v{MACRO.DISPLAY_VERSION} </Text></Text>;
     t1 = <Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}</Text>;
     t2 = <Text>{"                                                          "}</Text>;
-    t3 = <Text>{"     *                                       \u2588\u2588\u2588\u2588\u2588\u2593\u2593\u2591     "}</Text>;
-    t4 = <Text>{"                                 *         \u2588\u2588\u2588\u2593\u2591     \u2591\u2591   "}</Text>;
-    t5 = <Text>{"            \u2591\u2591\u2591\u2591\u2591\u2591                        \u2588\u2588\u2588\u2593\u2591           "}</Text>;
-    t6 = <Text>{"    \u2591\u2591\u2591   \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591                      \u2588\u2588\u2588\u2593\u2591           "}</Text>;
+    t3 = <Text>{"                                                          "}</Text>;
+    t4 = <Text>{"        "}<Text color="claude">{"  \u2593\u2593\u2593"}</Text>{"                                           "}</Text>;
+    t5 = <Text>{"        "}<Text color="claude">{" \u2593\u2593"}</Text>{"                                              "}</Text>;
+    t6 = <Text>{"        "}<Text color="claude">{"\u2588\u2588\u2588\u2588"}</Text>{"                                            "}</Text>;
     $[18] = t0;
     $[19] = t1;
     $[20] = t2;
@@ -142,11 +142,11 @@ export function WelcomeV2() {
   let t8;
   let t9;
   if ($[25] === Symbol.for("react.memo_cache_sentinel")) {
-    t7 = <Text><Text>{"   \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591    "}</Text><Text bold={true}>*</Text><Text>{"                \u2588\u2588\u2593\u2591\u2591      \u2593   "}</Text></Text>;
-    t8 = <Text>{"                                             \u2591\u2593\u2593\u2588\u2588\u2588\u2593\u2593\u2591    "}</Text>;
-    t9 = <Text dimColor={true}>{" *                                 \u2591\u2591\u2591\u2591                   "}</Text>;
-    t10 = <Text dimColor={true}>{"                                 \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591                 "}</Text>;
-    t11 = <Text dimColor={true}>{"                               \u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591\u2591           "}</Text>;
+    t7 = <Text>{"        "}<Text color="claude">{"  \u2593\u2593"}</Text>{"                                             "}</Text>;
+    t8 = <Text>{"                                                          "}</Text>;
+    t9 = <Text>{"                                                          "}</Text>;
+    t10 = <Text>{"                                                          "}</Text>;
+    t11 = <Text>{"                                                          "}</Text>;
     $[25] = t10;
     $[26] = t11;
     $[27] = t7;
@@ -161,35 +161,35 @@ export function WelcomeV2() {
   }
   let t12;
   if ($[30] === Symbol.for("react.memo_cache_sentinel")) {
-    t12 = <Text color="clawd_body"> █████████ </Text>;
+    t12 = <Text>{""}</Text>;
     $[30] = t12;
   } else {
     t12 = $[30];
   }
   let t13;
   if ($[31] === Symbol.for("react.memo_cache_sentinel")) {
-    t13 = <Text>{"      "}{t12}{"                                       "}<Text dimColor={true}>*</Text><Text> </Text></Text>;
+    t13 = <Text>{"                                                          "}</Text>;
     $[31] = t13;
   } else {
     t13 = $[31];
   }
   let t14;
   if ($[32] === Symbol.for("react.memo_cache_sentinel")) {
-    t14 = <Text>{"      "}<Text color="clawd_body">██▄█████▄██</Text><Text>{"                        "}</Text><Text bold={true}>*</Text><Text>{"                "}</Text></Text>;
+    t14 = <Text>{"                                                          "}</Text>;
     $[32] = t14;
   } else {
     t14 = $[32];
   }
   let t15;
   if ($[33] === Symbol.for("react.memo_cache_sentinel")) {
-    t15 = <Text>{"      "}<Text color="clawd_body"> █████████ </Text>{"     *                                   "}</Text>;
+    t15 = <Text>{"                                                          "}</Text>;
     $[33] = t15;
   } else {
     t15 = $[33];
   }
   let t16;
   if ($[34] === Symbol.for("react.memo_cache_sentinel")) {
-    t16 = <Box width={WELCOME_V2_WIDTH}><Text>{t0}{t1}{t2}{t3}{t4}{t5}{t6}{t7}{t8}{t9}{t10}{t11}{t13}{t14}{t15}<Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}<Text color="clawd_body">{"\u2588 \u2588   \u2588 \u2588"}</Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}</Text></Text></Box>;
+    t16 = <Box width={WELCOME_V2_WIDTH}><Text>{t0}{t1}{t2}{t3}{t4}{t5}{t6}{t7}{t8}{t9}{t10}{t11}{t13}{t14}{t15}<Text>{"\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026\u2026"}</Text></Text></Box>;
     $[34] = t16;
   } else {
     t16 = $[34];
