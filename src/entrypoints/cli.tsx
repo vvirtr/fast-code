@@ -50,6 +50,27 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Fast-path for reset: wipe config before anything loads
+  if (args[0] === 'reset') {
+    const { homedir } = await import('os');
+    const { join } = await import('path');
+    const { rmSync } = await import('fs');
+    const home = homedir();
+    const configDir = process.env.CLAUDE_CONFIG_DIR ?? join(home, '.fast');
+    const configFile = join(home, '.fast.json');
+    if (!args.includes('--yes')) {
+      const readline = await import('readline');
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise<string>(r => rl.question('Delete all settings, sessions, and credentials? [y/N] ', r));
+      rl.close();
+      if (answer.toLowerCase() !== 'y') { console.log('Cancelled.'); return; }
+    }
+    try { rmSync(configDir, { recursive: true, force: true }); } catch {}
+    try { rmSync(configFile, { force: true }); } catch {}
+    console.log('Reset complete. Run fast to set up again.');
+    return;
+  }
+
   // For all other paths, load the startup profiler
   const {
     profileCheckpoint
