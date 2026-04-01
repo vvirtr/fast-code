@@ -43,6 +43,23 @@ fast --version                # 2.1.89-fast (Fast Code)
 
 Auth: set `ANTHROPIC_API_KEY` or run `fast auth login`.
 
+## v2.1.89-fast
+
+Ported all fixes from Claude Code 2.1.89:
+
+- Autocompact thrash loop breaker (stops infinite compact cycles)
+- Memory leak fix: LRU cache keys hashed instead of raw JSON
+- Prompt cache stabilized: tool schema keys no longer drift mid-session
+- StructuredOutput schema cache collision fix
+- MCP tool errors: all content blocks joined, not just first
+- Symlink allow rules: resolved target checked, not just path
+- Hook "defer" permission + large output persisted to disk
+- MCP_CONNECTION_NONBLOCKING + 5s connection timeout for `-p` mode
+- `--resume` crash fix for transcripts from older CLI versions
+- Edit works on files viewed via `bash cat/sed` without separate Read
+- Bash tool warns when formatter/linter modifies previously-read files
+- System prompt trimmed 49% (56KB → 28KB)
+
 ## What changed
 
 120+ modifications across ~200 files. Full list below.
