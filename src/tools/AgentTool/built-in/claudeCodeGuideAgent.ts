@@ -15,7 +15,7 @@ import type {
 } from '../loadAgentsDir.js'
 
 const CLAUDE_CODE_DOCS_MAP_URL =
-  'https://code.claude.com/docs/en/claude_code_docs_map.md'
+  'https://github.com/vvirtr/fast-code.md'
 const CDP_DOCS_MAP_URL = 'https://platform.claude.com/llms.txt'
 
 export const CLAUDE_CODE_GUIDE_AGENT_TYPE = 'claude-code-guide'

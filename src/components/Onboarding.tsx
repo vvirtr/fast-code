@@ -88,7 +88,7 @@ export function Onboarding({
             <Text dimColor wrap="wrap">
               For more details see:
               <Newline />
-              <Link url="https://code.claude.com/docs/en/security" />
+              <Link url="https://github.com/vvirtr/fast-code" />
             </Text>
           </OrderedList.Item>
         </OrderedList>
