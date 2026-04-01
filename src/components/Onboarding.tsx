@@ -19,7 +19,9 @@ import { WelcomeV2 } from './LogoV2/WelcomeV2.js';
 import { PressEnterToContinue } from './PressEnterToContinue.js';
 import { ThemePicker } from './ThemePicker.js';
 import { OrderedList } from './ui/OrderedList.js';
-type StepId = 'preflight' | 'theme' | 'oauth' | 'api-key' | 'security' | 'terminal-setup';
+import { ApiSetup } from './ApiSetup.js';
+import { getSettingsForSource } from '../utils/settings/settings.js';
+type StepId = 'preflight' | 'api-setup' | 'theme' | 'oauth' | 'api-key' | 'security' | 'terminal-setup';
 interface OnboardingStep {
   id: StepId;
   component: React.ReactNode;
@@ -113,11 +115,29 @@ export function Onboarding({
     }
     goToNextStep();
   }
+  // Check if API key is already configured (env or settings)
+  const needsApiSetup = useMemo(() => {
+    if (process.env.ANTHROPIC_API_KEY) {
+      return false;
+    }
+    const userSettings = getSettingsForSource('userSettings');
+    if (userSettings?.env?.ANTHROPIC_API_KEY) {
+      return false;
+    }
+    return true;
+  }, []);
+
   const steps: OnboardingStep[] = [];
   if (oauthEnabled) {
     steps.push({
       id: 'preflight',
       component: preflightStep
+    });
+  }
+  if (needsApiSetup) {
+    steps.push({
+      id: 'api-setup',
+      component: <ApiSetup onDone={goToNextStep} />
     });
   }
   steps.push({
