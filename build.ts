@@ -100,10 +100,12 @@ const FEATURE_FLAGS: Record<string, boolean> = {
 };
 
 const version = process.env.VERSION || "0.1.0";
+const displayVersion = "0.1.0";
 const buildTime = new Date().toISOString();
 
 const define: Record<string, string> = {
   "MACRO.VERSION": JSON.stringify(version),
+  "MACRO.DISPLAY_VERSION": JSON.stringify(displayVersion ?? version),
   "MACRO.BUILD_TIME": JSON.stringify(buildTime),
   "MACRO.BUILD_TIMESTAMP": JSON.stringify(buildTime.split("T")[0]),
   "MACRO.FEEDBACK_CHANNEL": JSON.stringify("#claude-code-feedback"),

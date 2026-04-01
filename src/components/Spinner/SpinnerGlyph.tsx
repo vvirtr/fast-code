@@ -54,7 +54,7 @@ export function SpinnerGlyph(t0) {
       const interpolated = interpolateColor(baseRGB, ERROR_RED, stalledIntensity);
       return <Box flexWrap="wrap" height={1} width={2}><Text color={toRGBColor(interpolated)}>{spinnerChar}</Text></Box>;
     }
-    const color = stalledIntensity > 0.5 ? "error" : messageColor;
+    const color = stalledIntensity > 0.5 ? "permission" : messageColor;
     let t4;
     if ($[3] !== color || $[4] !== spinnerChar) {
       t4 = <Box flexWrap="wrap" height={1} width={2}><Text color={color}>{spinnerChar}</Text></Box>;

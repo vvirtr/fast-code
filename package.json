@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@alcalzone/ansi-tokenize": "^0.3.0",
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.81.0",
     "@commander-js/extra-typings": "12",
     "@growthbook/growthbook": "^1.4.0",
     "@modelcontextprotocol/sdk": "^1.12.1",

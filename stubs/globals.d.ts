@@ -1,5 +1,6 @@
 declare const MACRO: {
   readonly VERSION: string;
+  readonly DISPLAY_VERSION: string;
   readonly BUILD_TIME: string;
   readonly FEEDBACK_CHANNEL: string;
   readonly ISSUES_EXPLAINER: string;
