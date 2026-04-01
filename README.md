@@ -9,15 +9,17 @@ Optimized fork of Claude Code 2.1.89. Same functionality, smaller bundle, lower 
 
 ## Benchmarks
 
-Linux, Bun 1.2, Opus 4.6.
+Linux, Bun 1.2, Opus 4.6. Median of 5 runs, `-p "say ok"`.
 
-| Metric | Claude Code | Fast Code | Delta |
-|--------|------------|-----------|-------|
-| Dist size | 64 MB | 7.4 MB | -88% |
-| Peak RSS (short) | 224 MB | 154 MB | -31% |
-| Peak RSS (real task) | 226 MB | 167 MB | -26% |
-| TTFT `-p` | 6991 ms | 4857 ms | -31% |
-| Page faults | 106k | 72k | -32% |
+| Metric | Claude Code 2.1.89 | Fast Code 2.1.89 | Delta |
+|--------|-------------------|-------------------|-------|
+| Dist size | 41 MB | 7.3 MB | -82% |
+| Peak RSS (short) | 309 MB | 159 MB | -49% |
+| Peak RSS (real task) | 314 MB | 164 MB | -48% |
+| Wall time | 5.13s | 4.09s | -20% |
+| Page faults | 69k | 36k | -48% |
+| Context switches | 12.1k | 7.7k | -37% |
+| FS writes | 15.0k | 200 | -99% |
 
 ## Install
 
