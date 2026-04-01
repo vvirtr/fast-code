@@ -476,7 +476,7 @@ export const getWorktreeCount = async (): Promise<number> => {
 export const stashToCleanState = async (message?: string): Promise<boolean> => {
   try {
     const stashMessage =
-      message || `Claude Code auto-stash - ${new Date().toISOString()}`
+      message || `Fast Code auto-stash - ${new Date().toISOString()}`
 
     // First, check if we have untracked files
     const { untracked } = await getFileStatus()
