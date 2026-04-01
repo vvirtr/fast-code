@@ -13,7 +13,7 @@ import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js'
 import { startInteractionSpan } from '../telemetry/sessionTracing.js'
 import {
   matchesKeepGoingKeyword,
-  matchesNegativeKeyword,
+  // [fast-code] removed: matchesNegativeKeyword import (frustration tracking disabled)
 } from '../userPromptKeywords.js'
 
 export function processTextPrompt(
@@ -56,10 +56,9 @@ export function processTextPrompt(
     })
   }
 
-  const isNegative = matchesNegativeKeyword(userPromptText)
+  // [fast-code] removed: is_negative frustration telemetry
   const isKeepGoing = matchesKeepGoingKeyword(userPromptText)
   logEvent('tengu_input_prompt', {
-    is_negative: isNegative,
     is_keep_going: isKeepGoing,
   })
 

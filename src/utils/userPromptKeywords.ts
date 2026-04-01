@@ -1,13 +1,9 @@
 /**
  * Checks if input matches negative keyword patterns
  */
-export function matchesNegativeKeyword(input: string): boolean {
-  const lowerInput = input.toLowerCase()
-
-  const negativePattern =
-    /\b(wtf|wth|ffs|omfg|shit(ty|tiest)?|dumbass|horrible|awful|piss(ed|ing)? off|piece of (shit|crap|junk)|what the (fuck|hell)|fucking? (broken|useless|terrible|awful|horrible)|fuck you|screw (this|you)|so frustrating|this sucks|damn it)\b/
-
-  return negativePattern.test(lowerInput)
+// [fast-code] removed: frustration tracking regex stripped
+export function matchesNegativeKeyword(_input: string): boolean {
+  return false
 }
 
 /**
