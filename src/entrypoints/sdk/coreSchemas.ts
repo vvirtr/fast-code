@@ -803,10 +803,19 @@ export const AsyncHookJSONOutputSchema = lazySchema(() =>
   }),
 )
 
+/**
+ * Hook-specific permission decision schema for PreToolUse.
+ * Extends base PermissionBehavior with 'defer' — a headless-only option
+ * that pauses the session so it can be resumed via -p --resume.
+ */
+export const HookPermissionDecisionSchema = lazySchema(() =>
+  z.enum(['allow', 'deny', 'ask', 'defer']),
+)
+
 export const PreToolUseHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PreToolUse'),
-    permissionDecision: PermissionBehaviorSchema().optional(),
+    permissionDecision: HookPermissionDecisionSchema().optional(),
     permissionDecisionReason: z.string().optional(),
     updatedInput: z.record(z.string(), z.unknown()).optional(),
     additionalContext: z.string().optional(),

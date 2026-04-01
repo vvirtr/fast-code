@@ -59,6 +59,7 @@ import {
 } from './plans.js'
 import { getPlatform } from './platform.js'
 import { countFilesRoundedRg } from './ripgrep.js'
+import { hashContent } from './hash.js'
 import { jsonStringify } from './slowOperations.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { getToolSchemaCache } from './toolSchemaCache.js'
@@ -144,9 +145,12 @@ export async function toolToAPISchema(
   // call — name-only keying returned a stale schema (5.4% → 51% err rate, see
   // PR#25424). MCP tools also set inputJSONSchema but each has a stable schema,
   // so including it preserves their GB-flip cache stability.
+  // Key is hashed to avoid retaining large JSON strings in the Map and to
+  // ensure stable byte-level identity (prevents mid-session tool schema byte
+  // churn that would bust the prompt cache).
   const cacheKey =
     'inputJSONSchema' in tool && tool.inputJSONSchema
-      ? `${tool.name}:${jsonStringify(tool.inputJSONSchema)}`
+      ? `${tool.name}:${hashContent(jsonStringify(tool.inputJSONSchema))}`
       : tool.name
   const cache = getToolSchemaCache()
   let base = cache.get(cacheKey)

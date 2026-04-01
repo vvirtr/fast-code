@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache'
+import { hashContent } from './hash.js'
 import { logError } from './log.js'
 import { jsonStringify } from './slowOperations.js'
 
@@ -44,7 +45,10 @@ export function memoizeWithTTL<Args extends unknown[], Result>(
   const cache = new Map<string, CacheEntry<Result>>()
 
   const memoized = (...args: Args): Result => {
-    const key = jsonStringify(args)
+    // Hash the cache key to avoid retaining large JSON strings as Map keys.
+    // In long-running sessions, raw jsonStringify keys for large inputs caused
+    // unbounded memory growth (keys pinned in the Map even after values expired).
+    const key = hashContent(jsonStringify(args))
     const cached = cache.get(key)
     const now = Date.now()
 
@@ -132,7 +136,8 @@ export function memoizeWithTTLAsync<Args extends unknown[], Result>(
   const inFlight = new Map<string, Promise<Result>>()
 
   const memoized = async (...args: Args): Promise<Result> => {
-    const key = jsonStringify(args)
+    // Hash the cache key — see comment in memoizeWithTTL above.
+    const key = hashContent(jsonStringify(args))
     const cached = cache.get(key)
     const now = Date.now()
 

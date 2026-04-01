@@ -2833,11 +2833,18 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
     const content = msg.message.content
     if (!Array.isArray(content)) continue
     for (const block of content) {
-      if (block.type === 'tool_use') {
+      if (block.type === 'tool_use' && typeof block.id === 'string') {
         toolUseIds.add(block.id)
       }
-      if (block.type === 'tool_result') {
-        toolResultIds.add(block.tool_use_id)
+      // Guard against malformed tool_result blocks from older CLI versions
+      // or interrupted writes where tool_use_id may be missing/undefined.
+      if (
+        block.type === 'tool_result' &&
+        typeof (block as { tool_use_id?: unknown }).tool_use_id === 'string'
+      ) {
+        toolResultIds.add(
+          (block as { tool_use_id: string }).tool_use_id,
+        )
       }
     }
   }
@@ -2857,7 +2864,7 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
     if (!Array.isArray(content)) return true
     const toolUseBlockIds: string[] = []
     for (const b of content) {
-      if (b.type === 'tool_use') {
+      if (b.type === 'tool_use' && typeof b.id === 'string') {
         toolUseBlockIds.push(b.id)
       }
     }

@@ -57,6 +57,11 @@ export type AutoCompactTrackingState = {
   // Used as a circuit breaker to stop retrying when the context is
   // irrecoverably over the limit (e.g., prompt_too_long).
   consecutiveFailures?: number
+  // Number of times context refilled to the autocompact threshold within
+  // fewer than MIN_TURNS_BETWEEN_COMPACTS turns after the previous compact.
+  // When this reaches MAX_CONSECUTIVE_RAPID_REFILLS the rapid-refill breaker
+  // trips and the session stops with an actionable error.
+  consecutiveRapidRefills?: number
 }
 
 export const AUTOCOMPACT_BUFFER_TOKENS = 13_000
@@ -68,6 +73,16 @@ export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
 // BQ 2026-03-10: 1,279 sessions had 50+ consecutive failures (up to 3,272)
 // in a single session, wasting ~250K API calls/day globally.
 const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
+
+// Rapid-refill breaker: if context refills to the autocompact threshold
+// within fewer than this many turns after compacting, it counts as a
+// "rapid refill". After MAX_CONSECUTIVE_RAPID_REFILLS in a row the breaker
+// trips — a file or tool output is too large for the context window and
+// compacting will never create enough headroom.
+const MIN_TURNS_BETWEEN_COMPACTS = 3
+const MAX_CONSECUTIVE_RAPID_REFILLS = 3
+
+export const AUTOCOMPACT_THRASH_ERROR_MESSAGE = `Autocompact is thrashing: the context refilled to the limit within ${MIN_TURNS_BETWEEN_COMPACTS} turns of the previous compact, ${MAX_CONSECUTIVE_RAPID_REFILLS} times in a row. A file being read or a tool output is likely too large for the context window. Try reading in smaller chunks, or use /clear to start fresh.`
 
 export function getAutoCompactThreshold(model: string): number {
   const effectiveContextWindow = getEffectiveContextWindowSize(model)
@@ -249,6 +264,8 @@ export async function autoCompactIfNeeded(
   wasCompacted: boolean
   compactionResult?: CompactionResult
   consecutiveFailures?: number
+  consecutiveRapidRefills?: number
+  rapidRefillBreakerTripped?: boolean
 }> {
   if (isEnvTruthy(process.env.DISABLE_COMPACT)) {
     return { wasCompacted: false }
@@ -274,6 +291,28 @@ export async function autoCompactIfNeeded(
 
   if (!shouldCompact) {
     return { wasCompacted: false }
+  }
+
+  // Rapid-refill detection: if the previous compact happened and context
+  // refilled within fewer than MIN_TURNS_BETWEEN_COMPACTS turns, increment
+  // the rapid-refill counter. Once the counter reaches
+  // MAX_CONSECUTIVE_RAPID_REFILLS, trip the breaker — a file or tool output
+  // is larger than the headroom compaction creates, so compacting again would
+  // just burn API calls.
+  const consecutiveRapidRefills =
+    tracking?.compacted === true && tracking.turnCounter < MIN_TURNS_BETWEEN_COMPACTS
+      ? (tracking?.consecutiveRapidRefills ?? 0) + 1
+      : 0
+
+  if (consecutiveRapidRefills >= MAX_CONSECUTIVE_RAPID_REFILLS) {
+    logForDebugging(
+      `autocompact: rapid-refill breaker tripped — ${consecutiveRapidRefills} consecutive refills within <${MIN_TURNS_BETWEEN_COMPACTS} turns each (last was ${tracking?.turnCounter} turns)`,
+      { level: 'warn' },
+    )
+    return {
+      wasCompacted: false,
+      rapidRefillBreakerTripped: true,
+    }
   }
 
   const recompactionInfo: RecompactionInfo = {
@@ -306,6 +345,7 @@ export async function autoCompactIfNeeded(
     return {
       wasCompacted: true,
       compactionResult: sessionMemoryResult,
+      consecutiveRapidRefills,
     }
   }
 
@@ -330,6 +370,7 @@ export async function autoCompactIfNeeded(
       compactionResult,
       // Reset failure count on success
       consecutiveFailures: 0,
+      consecutiveRapidRefills,
     }
   } catch (error) {
     if (!hasExactErrorMessage(error, ERROR_MESSAGE_USER_ABORT)) {

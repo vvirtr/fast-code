@@ -162,8 +162,63 @@ import type { AppState } from '../state/AppState.js'
 import { jsonStringify, jsonParse } from './slowOperations.js'
 import { isEnvTruthy } from './envUtils.js'
 import { errorMessage, getErrnoCode } from './errors.js'
+import {
+  persistToolResult,
+  buildLargeToolResultMessage,
+  isPersistError,
+} from './toolResultStorage.js'
 
 const TOOL_HOOK_EXECUTION_TIMEOUT_MS = 10 * 60 * 1000
+
+/**
+ * Threshold (chars) above which hook output is persisted to disk.
+ * Prevents huge hook outputs from being injected directly into the
+ * conversation context, which would waste tokens and slow down inference.
+ */
+const HOOK_OUTPUT_PERSIST_THRESHOLD = 10_000
+
+/**
+ * Persist large hook output to disk instead of injecting it directly into
+ * context. Returns the original string if below threshold, otherwise returns
+ * a file-path + preview message (same format as tool result persistence).
+ *
+ * @param output The hook output string to potentially persist
+ * @param hookId Unique hook execution ID (used for the filename)
+ * @param source Label for analytics/logging (e.g. 'stdout', 'systemMessage')
+ * @param threshold Character count above which output is persisted
+ */
+export async function persistHookOutput(
+  output: string,
+  hookId: string,
+  source: string,
+  threshold: number = HOOK_OUTPUT_PERSIST_THRESHOLD,
+): Promise<string> {
+  if (output.length <= threshold) {
+    return output
+  }
+
+  const result = await persistToolResult(output, `hook-${hookId}-${source}`)
+  if (isPersistError(result)) {
+    logEvent('tengu_hook_output_persisted', {
+      source:
+        source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      originalSizeBytes: output.length,
+      persistedSizeBytes: 0,
+      truncatedFallback: true,
+    })
+    return `${output.slice(0, threshold)}\n\n[Hook ${source} truncated at ${threshold} chars — persist-to-disk failed: ${result.error}]`
+  }
+
+  const message = buildLargeToolResultMessage(result)
+  logEvent('tengu_hook_output_persisted', {
+    source:
+      source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    originalSizeBytes: result.originalSize,
+    persistedSizeBytes: message.length,
+    truncatedFallback: false,
+  })
+  return message
+}
 
 /**
  * SessionEnd hooks run during shutdown/clear and need a much tighter bound
@@ -342,7 +397,7 @@ export interface HookResult {
   outcome: 'success' | 'blocking' | 'non_blocking_error' | 'cancelled'
   preventContinuation?: boolean
   stopReason?: string
-  permissionBehavior?: 'ask' | 'deny' | 'allow' | 'passthrough'
+  permissionBehavior?: 'ask' | 'deny' | 'allow' | 'passthrough' | 'defer'
   hookPermissionDecisionReason?: string
   additionalContext?: string
   initialUserMessage?: string
@@ -363,7 +418,7 @@ export type AggregatedHookResult = {
   stopReason?: string
   hookPermissionDecisionReason?: string
   hookSource?: string
-  permissionBehavior?: PermissionResult['behavior']
+  permissionBehavior?: PermissionResult['behavior'] | 'defer'
   additionalContexts?: string[]
   initialUserMessage?: string
   updatedInput?: Record<string, unknown>
@@ -425,7 +480,8 @@ function parseHookOutput(stdout: string): {
         hookSpecificOutput: {
           'for PreToolUse': {
             hookEventName: '"PreToolUse"',
-            permissionDecision: '"allow" | "deny" | "ask" (optional)',
+            permissionDecision:
+              '"allow" | "deny" | "ask" | "defer" (optional)',
             permissionDecisionReason: 'string (optional)',
             updatedInput: 'object (optional) - Modified tool input to use',
           },
@@ -566,10 +622,13 @@ function processHookJSONOutput({
       case 'ask':
         result.permissionBehavior = 'ask'
         break
+      case 'defer':
+        result.permissionBehavior = 'defer'
+        break
       default:
         // Handle unknown decision types as errors
         throw new Error(
-          `Unknown hook permissionDecision type: ${json.hookSpecificOutput.permissionDecision}. Valid types are: allow, deny, ask`,
+          `Unknown hook permissionDecision type: ${json.hookSpecificOutput.permissionDecision}. Valid types are: allow, deny, ask, defer`,
         )
     }
   }
@@ -609,6 +668,9 @@ function processHookJSONOutput({
               break
             case 'ask':
               result.permissionBehavior = 'ask'
+              break
+            case 'defer':
+              result.permissionBehavior = 'defer'
               break
           }
         }
@@ -2625,13 +2687,18 @@ async function* executeHooks({
           exitCode: result.status,
           outcome: 'success',
         })
+        const persistedStdout = await persistHookOutput(
+          result.stdout.trim(),
+          hookId,
+          'stdout',
+        )
         yield {
           message: createAttachmentMessage({
             type: 'hook_success',
             hookName,
             toolUseID,
             hookEvent,
-            content: result.stdout.trim(),
+            content: persistedStdout,
             stdout: result.stdout,
             stderr: result.stderr,
             exitCode: result.status,
@@ -2738,10 +2805,12 @@ async function* executeHooks({
     cancelled: 0,
   }
 
-  let permissionBehavior: PermissionResult['behavior'] | undefined
+  let permissionBehavior: PermissionResult['behavior'] | 'defer' | undefined
+  let hookResultCounter = 0
 
   // Run all hooks in parallel and wait for all to complete
   for await (const result of all(hookPromises)) {
+    hookResultCounter++
     outcomes[result.outcome]++
 
     // Check for preventContinuation early
@@ -2768,10 +2837,15 @@ async function* executeHooks({
 
     // Yield system message separately if present
     if (result.systemMessage) {
+      const persistedSystemMessage = await persistHookOutput(
+        result.systemMessage,
+        `${toolUseID}-${hookResultCounter}`,
+        'systemMessage',
+      )
       yield {
         message: createAttachmentMessage({
           type: 'hook_system_message',
-          content: result.systemMessage,
+          content: persistedSystemMessage,
           hookName,
           toolUseID,
           hookEvent,
@@ -2784,8 +2858,13 @@ async function* executeHooks({
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) provided additionalContext (${result.additionalContext.length} chars)`,
       )
+      const persistedAdditionalContext = await persistHookOutput(
+        result.additionalContext,
+        `${toolUseID}-${hookResultCounter}`,
+        'additionalContext',
+      )
       yield {
-        additionalContexts: [result.additionalContext],
+        additionalContexts: [persistedAdditionalContext],
       }
     }
 
@@ -2793,8 +2872,13 @@ async function* executeHooks({
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) provided initialUserMessage (${result.initialUserMessage.length} chars)`,
       )
+      const persistedInitialUserMessage = await persistHookOutput(
+        result.initialUserMessage,
+        `${toolUseID}-${hookResultCounter}`,
+        'initialUserMessage',
+      )
       yield {
-        initialUserMessage: result.initialUserMessage,
+        initialUserMessage: persistedInitialUserMessage,
       }
     }
 
@@ -2817,7 +2901,7 @@ async function* executeHooks({
       }
     }
 
-    // Check for permission behavior with precedence: deny > ask > allow
+    // Check for permission behavior with precedence: deny > defer > ask > allow
     if (result.permissionBehavior) {
       logForDebugging(
         `Hook ${hookEvent} (${getHookDisplayText(result.hook)}) returned permissionDecision: ${result.permissionBehavior}${result.hookPermissionDecisionReason ? ` (reason: ${result.hookPermissionDecisionReason})` : ''}`,
@@ -2828,9 +2912,15 @@ async function* executeHooks({
           // deny always takes precedence
           permissionBehavior = 'deny'
           break
-        case 'ask':
-          // ask takes precedence over allow but not deny
+        case 'defer':
+          // defer takes precedence over ask and allow but not deny
           if (permissionBehavior !== 'deny') {
+            permissionBehavior = 'defer'
+          }
+          break
+        case 'ask':
+          // ask takes precedence over allow but not deny or defer
+          if (permissionBehavior !== 'deny' && permissionBehavior !== 'defer') {
             permissionBehavior = 'ask'
           }
           break

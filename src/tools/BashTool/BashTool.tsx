@@ -1,6 +1,7 @@
 import { feature } from 'bun:bundle';
 import type { ToolResultBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
 import { copyFile, stat as fsStat, truncate as fsTruncate, link } from 'fs/promises';
+import { relative } from 'path';
 import * as React from 'react';
 import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js';
 import type { AppState } from 'src/state/AppState.js';
@@ -16,11 +17,13 @@ import type { AgentId } from '../../types/ids.js';
 import type { AssistantMessage } from '../../types/message.js';
 import { parseForSecurity } from '../../utils/bash/ast.js';
 import { splitCommand_DEPRECATED, splitCommandWithOperators } from '../../utils/bash/commands.js';
+import { tryParseShellCommand } from '../../utils/bash/shellQuote.js';
 import { extractClaudeCodeHints } from '../../utils/claudeCodeHints.js';
 import { detectCodeIndexingFromCommand } from '../../utils/codeIndexing.js';
 import { isEnvTruthy } from '../../utils/envUtils.js';
 import { isENOENT, ShellError } from '../../utils/errors.js';
-import { detectFileEncoding, detectLineEndings, getFileModificationTime, writeTextContent } from '../../utils/file.js';
+import { getCwd } from '../../utils/cwd.js';
+import { detectFileEncoding, detectLineEndings, getFileModificationTime, getFileModificationTimeAsync, writeTextContent } from '../../utils/file.js';
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js';
 import { truncate } from '../../utils/format.js';
 import { getFsImplementation } from '../../utils/fsOperations.js';
@@ -216,6 +219,253 @@ function isSilentBashCommand(command: string): boolean {
   return hasNonFallbackCommand;
 }
 
+// -----------------------------------------------------------------------
+// Fix 1: Track files viewed via Bash (cat, sed -n) so Edit doesn't
+// require a separate Read call when the file was already viewed.
+// -----------------------------------------------------------------------
+
+/** Regex for `sed -n 'N,Mp' file` range-print expressions. */
+const SED_RANGE_PRINT_RE = /^(\d+),(\d+)p$/;
+/** Regex for `sed -n 'Np' file` single-line print. */
+const SED_SINGLE_PRINT_RE = /^(\d+)p$/;
+/** Commands that are benign filler in multi-command strings. */
+const BENIGN_FILLER_RE = /^\s*(echo|printf|true|:)\b/;
+
+type FileReadTarget = {
+  filePath: string;
+  startLine: number | undefined;
+  endLine: number | undefined;
+};
+
+/**
+ * Parse a `sed -n '...' file` command that only *reads* (not writes) a file.
+ * Returns the file path and optional line range, or null if the command is
+ * not a simple sed read (e.g. it has -i / -e / --in-place).
+ */
+function parseSedReadCommand(singleCommand: string): FileReadTarget | null {
+  const parsed = tryParseShellCommand(singleCommand);
+  if (!parsed.success) return null;
+  const args = parsed.tokens.filter((t): t is string => typeof t === 'string');
+  if (args[0] !== 'sed') return null;
+
+  let hasQuiet = false;
+  let expression: string | null = null;
+  let filePath: string | null = null;
+
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg.startsWith('-')) {
+      if (arg.startsWith('--')) {
+        if (arg === '--in-place' || arg.startsWith('--in-place=')) return null;
+        if (arg === '--expression') return null;
+        if (arg === '--quiet' || arg === '--silent') hasQuiet = true;
+      } else {
+        if (arg.includes('i')) return null; // -i is in-place edit
+        if (arg === '-e') return null;
+        if (arg.includes('n')) hasQuiet = true;
+      }
+      continue;
+    }
+    // Positional args: first is the expression, second is the file
+    if (expression === null) expression = arg;
+    else if (filePath === null) filePath = arg;
+    else return null; // Too many positional args
+  }
+
+  if (!hasQuiet || expression === null || filePath === null) return null;
+
+  const rangeMatch = SED_RANGE_PRINT_RE.exec(expression);
+  if (rangeMatch) {
+    return { filePath, startLine: Number(rangeMatch[1]), endLine: Number(rangeMatch[2]) };
+  }
+  const singleMatch = SED_SINGLE_PRINT_RE.exec(expression);
+  if (singleMatch) {
+    const line = Number(singleMatch[1]);
+    return { filePath, startLine: line, endLine: line };
+  }
+  return null;
+}
+
+/**
+ * Parse a `cat [-n] file` command that reads a single file.
+ * Returns the file path or null if the command is not a simple cat read.
+ */
+function parseCatReadCommand(singleCommand: string): FileReadTarget | null {
+  const parsed = tryParseShellCommand(singleCommand);
+  if (!parsed.success) return null;
+  const args = parsed.tokens.filter((t): t is string => typeof t === 'string');
+  if (args[0] !== 'cat') return null;
+
+  let filePath: string | null = null;
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg.startsWith('-')) {
+      // Only allow -n / --number (line numbering)
+      if (arg !== '-n' && arg !== '--number') return null;
+      continue;
+    }
+    // Only allow a single file argument
+    if (filePath !== null) return null;
+    filePath = arg;
+  }
+  if (filePath === null || filePath === '-') return null;
+  return { filePath, startLine: undefined, endLine: undefined };
+}
+
+/**
+ * Extract file-read targets from a compound bash command string.
+ * Only returns results when every sub-command is either a recognized read
+ * command (sed -n / cat) or benign filler (echo, printf, true, :).
+ * Commands with pipes, redirects, or unrecognized parts return [].
+ */
+function extractFileReadsFromCommand(command: string): FileReadTarget[] {
+  // Bail out on pipes / redirects — too complex to safely reason about
+  if (/[|<>]/.test(command)) return [];
+
+  let parts: string[];
+  try {
+    parts = splitCommandWithOperators(command);
+  } catch {
+    return [];
+  }
+  if (parts.length === 0) return [];
+
+  const targets: FileReadTarget[] = [];
+  for (const part of parts) {
+    const target = parseSedReadCommand(part) ?? parseCatReadCommand(part);
+    if (target) {
+      targets.push(target);
+    } else if (parts.length > 1 && !BENIGN_FILLER_RE.test(part)) {
+      // If any sub-command is unrecognized (and not benign filler),
+      // bail out — we can't be sure the compound command only reads.
+      return [];
+    }
+  }
+  return targets;
+}
+
+/**
+ * After a bash command completes, populate readFileState for any files that
+ * were viewed via `cat` or `sed -n`. This allows a subsequent Edit call to
+ * skip the "must Read first" validation.
+ *
+ * Max file size: 10 MB — beyond that the model almost certainly didn't
+ * consume the full output, so we don't mark it as "read".
+ */
+const MAX_BASH_READ_FILE_SIZE = 10 * 1024 * 1024;
+
+async function trackBashFileReads(
+  command: string,
+  readFileState: ToolUseContext['readFileState'],
+  signal: AbortSignal,
+): Promise<void> {
+  const targets = extractFileReadsFromCommand(command);
+  if (targets.length === 0) return;
+
+  const fs = getFsImplementation();
+
+  await Promise.all(targets.map(async (target) => {
+    const absolutePath = expandPath(target.filePath);
+    // Don't overwrite an existing (potentially full) read
+    if (readFileState.has(absolutePath)) return;
+
+    try {
+      const fileStat = await fs.stat(absolutePath);
+      if (fileStat.size > MAX_BASH_READ_FILE_SIZE) return;
+      if (signal.aborted) return;
+
+      const content = await fs.readFile(absolutePath, { encoding: 'utf8' });
+      let stateContent: string;
+      let offset: number | undefined;
+      let limit: number | undefined;
+
+      if (target.startLine === undefined) {
+        // Full file read (cat)
+        stateContent = content;
+      } else {
+        // Partial read (sed -n)
+        const lines = content.split('\n');
+        const start = Math.max(1, target.startLine);
+        const end = Math.max(start, target.endLine ?? start);
+        if (start > lines.length) return;
+        stateContent = lines.slice(start - 1, end).join('\n');
+        offset = start;
+        limit = end - start + 1;
+      }
+
+      readFileState.set(absolutePath, {
+        content: stateContent,
+        timestamp: Math.floor(fileStat.mtimeMs),
+        offset,
+        limit,
+      });
+    } catch {
+      // File may not exist, be a directory, etc. — silently skip
+    }
+  }));
+}
+
+// -----------------------------------------------------------------------
+// Fix 2: Warn when a formatter/linter modifies files that were previously
+// read, preventing stale-edit errors.
+// -----------------------------------------------------------------------
+
+/**
+ * Regex matching commands that are known formatters / linters / fixers.
+ * When one of these runs, we check if it modified any files that were
+ * previously read — if so, we warn the model to re-read before editing.
+ */
+const WRITE_COMMAND_MARKERS = new RegExp([
+  '--write',
+  '--fix',
+  '--in-place',
+  '--auto-correct',
+  '\\brun\\s+format\\b',
+  '\\brun\\s+fix\\b',
+  '\\b(yarn|pnpm)\\s+format\\b',
+  '\\blint:file\\b',
+  '\\blint:fix\\b',
+  '\\bblack\\b',
+  '\\bisort\\b',
+  '\\bruff\\s+format\\b',
+  '\\bcargo\\s+(fmt|fix)\\b',
+  '\\brustfmt\\b',
+  '\\bgo\\s+fmt\\b',
+  '\\bterraform\\s+fmt\\b',
+  '\\bdprint\\s+fmt\\b',
+  '\\bswiftformat\\b',
+  '\\bphpcbf\\b',
+].join('|'));
+
+/**
+ * After a formatter/linter command completes, check which previously-read
+ * files were modified on disk. Returns the list of absolute paths whose
+ * mtime is now newer than both `commandStartTime` and the cached timestamp.
+ */
+async function getModifiedReadFiles(
+  command: string,
+  readFileState: ToolUseContext['readFileState'],
+  commandStartTime: number,
+): Promise<string[]> {
+  if (!WRITE_COMMAND_MARKERS.test(command)) return [];
+
+  const modified: string[] = [];
+  await Promise.all(
+    Array.from(readFileState.entries(), ([filePath, state]) =>
+      getFileModificationTimeAsync(filePath)
+        .then((mtime) => {
+          if (mtime > commandStartTime && mtime > state.timestamp) {
+            modified.push(filePath);
+          }
+        })
+        .catch(() => {
+          // File may have been deleted — ignore
+        }),
+    ),
+  );
+  return modified;
+}
+
 // Commands that should not be auto-backgrounded
 const DISALLOWED_AUTO_BACKGROUND_COMMANDS = ['sleep' // Sleep should run in foreground unless explicitly backgrounded by user
 ];
@@ -290,7 +540,8 @@ const outputSchema = lazySchema(() => z.object({
   noOutputExpected: z.boolean().optional().describe('Whether the command is expected to produce no output on success'),
   structuredContent: z.array(z.any()).optional().describe('Structured content blocks'),
   persistedOutputPath: z.string().optional().describe('Path to the persisted full output in tool-results dir (set when output is too large for inline)'),
-  persistedOutputSize: z.number().optional().describe('Total size of the output in bytes (set when output is too large for inline)')
+  persistedOutputSize: z.number().optional().describe('Total size of the output in bytes (set when output is too large for inline)'),
+  staleReadFileStateHint: z.string().optional().describe('Model-facing note listing readFileState entries whose mtime bumped during this command (set when WRITE_COMMAND_MARKERS matches)')
 }));
 type OutputSchema = ReturnType<typeof outputSchema>;
 export type Out = z.infer<OutputSchema>;
@@ -600,7 +851,8 @@ export const BashTool = buildTool({
     assistantAutoBackgrounded,
     structuredContent,
     persistedOutputPath,
-    persistedOutputSize
+    persistedOutputSize,
+    staleReadFileStateHint
   }, toolUseID): ToolResultBlockParam {
     // Handle structured content
     if (structuredContent && structuredContent.length > 0) {
@@ -655,7 +907,7 @@ export const BashTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: [processedStdout, errorMessage, backgroundInfo].filter(Boolean).join('\n'),
+      content: [processedStdout, errorMessage, backgroundInfo, staleReadFileStateHint].filter(Boolean).join('\n'),
       is_error: interrupted
     };
   },
@@ -698,6 +950,7 @@ export const BashTool = buildTool({
     let result: ExecResult;
     const isMainThread = !toolUseContext.agentId;
     const preventCwdChanges = !isMainThread;
+    const commandStartTime = Date.now();
     try {
       // Use the new async generator version of runShellCommand
       const commandGenerator = runShellCommand({
@@ -867,6 +1120,25 @@ export const BashTool = buildTool({
         isImage = false;
       }
     }
+    // Fix 2: Detect formatter/linter commands that modified previously-read files
+    let staleReadFileStateHint: string | undefined;
+    if (!wasInterrupted && !isImage && !result.backgroundTaskId) {
+      const modifiedFiles = await getModifiedReadFiles(input.command, toolUseContext.readFileState, commandStartTime);
+      if (modifiedFiles.length > 0) {
+        const cwd = getCwd();
+        const MAX_DISPLAY = 5;
+        const displayed = modifiedFiles.slice(0, MAX_DISPLAY).map((f) => relative(cwd, f) || f).join(', ');
+        const extra = modifiedFiles.length > MAX_DISPLAY ? ` and ${modifiedFiles.length - MAX_DISPLAY} more` : '';
+        staleReadFileStateHint = `[This command modified ${modifiedFiles.length} ${modifiedFiles.length === 1 ? 'file' : 'files'} you've previously read: ${displayed}${extra}. Call Read before editing.]`;
+      }
+    }
+
+    // Fix 1: Track files viewed via bash (cat, sed -n) so Edit doesn't
+    // require a separate Read call
+    if (!wasInterrupted && !isImage && !result.backgroundTaskId) {
+      await trackBashFileReads(input.command, toolUseContext.readFileState, abortController.signal);
+    }
+
     const data: Out = {
       stdout: compressedStdout,
       stderr: stderrForShellReset,
@@ -879,7 +1151,8 @@ export const BashTool = buildTool({
       assistantAutoBackgrounded: result.assistantAutoBackgrounded,
       dangerouslyDisableSandbox: 'dangerouslyDisableSandbox' in input ? input.dangerouslyDisableSandbox as boolean | undefined : undefined,
       persistedOutputPath,
-      persistedOutputSize
+      persistedOutputSize,
+      staleReadFileStateHint
     };
     return {
       data

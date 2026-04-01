@@ -2403,14 +2403,26 @@ export async function getMcpToolsCommandsAndResources(
 // Not memoized: called only 2-3 times at startup/reconfig. The inner work
 // (connectToServer, fetch*ForClient) is already cached. Memoizing here by
 // mcpConfigs object ref leaked — main.tsx creates fresh config objects each call.
+/**
+ * Default timeout for MCP server connections in print/headless mode (5 seconds).
+ * Prevents one slow server from blocking the entire startup.
+ * Set MCP_CONNECTION_NONBLOCKING=true to skip the wait entirely in -p mode.
+ */
+const MCP_CONNECTION_TIMEOUT_MS = 5000
+
 export function prefetchAllMcpResources(
   mcpConfigs: Record<string, ScopedMcpServerConfig>,
+  options?: { nonBlocking?: boolean },
 ): Promise<{
   clients: MCPServerConnection[]
   tools: Tool[]
   commands: Command[]
 }> {
-  return new Promise(resolve => {
+  const innerPromise = new Promise<{
+    clients: MCPServerConnection[]
+    tools: Tool[]
+    commands: Command[]
+  }>(resolve => {
     let pendingCount = 0
     let completedCount = 0
 
@@ -2468,6 +2480,51 @@ export function prefetchAllMcpResources(
       })
     })
   })
+
+  // In non-blocking mode (print/headless -p), skip waiting entirely —
+  // MCP tools will become available asynchronously as servers connect.
+  const nonBlocking =
+    options?.nonBlocking ||
+    process.env.MCP_CONNECTION_NONBLOCKING === 'true'
+
+  if (nonBlocking) {
+    // Don't block on MCP connections at all — resolve immediately with
+    // empty results. The connections still proceed in the background and
+    // tools become available for subsequent turns.
+    innerPromise.catch(() => {}) // suppress unhandled rejection
+    return Promise.resolve({
+      clients: [],
+      tools: [],
+      commands: [],
+    })
+  }
+
+  // Bound the MCP connection wait at MCP_CONNECTION_TIMEOUT_MS so one
+  // slow server doesn't block the batch indefinitely.
+  let timeoutHandle: ReturnType<typeof setTimeout>
+  const timeoutPromise = new Promise<{
+    clients: MCPServerConnection[]
+    tools: Tool[]
+    commands: Command[]
+  }>(resolve => {
+    timeoutHandle = setTimeout(() => {
+      logMCPError(
+        'prefetchAllMcpResources',
+        `MCP connection timed out after ${MCP_CONNECTION_TIMEOUT_MS}ms — proceeding without waiting for remaining servers`,
+      )
+      resolve({
+        clients: [],
+        tools: [],
+        commands: [],
+      })
+    }, MCP_CONNECTION_TIMEOUT_MS)
+    // Unref so the timer doesn't prevent process exit
+    if (typeof timeoutHandle === 'object' && 'unref' in timeoutHandle) {
+      timeoutHandle.unref()
+    }
+  })
+
+  return Promise.race([innerPromise, timeoutPromise])
 }
 
 /**
@@ -3126,13 +3183,20 @@ async function callMCPTool({
         Array.isArray(result.content) &&
         result.content.length > 0
       ) {
-        const firstContent = result.content[0]
-        if (
-          firstContent &&
-          typeof firstContent === 'object' &&
-          'text' in firstContent
-        ) {
-          errorDetails = firstContent.text
+        // Collect text from ALL content blocks, not just the first one.
+        // MCP servers can return multi-element error content (e.g. error
+        // message + stack trace in separate blocks). Previously only the
+        // first block was used, truncating diagnostic information.
+        const textParts = result.content
+          .filter(
+            (block: unknown): block is { text: string } =>
+              block != null &&
+              typeof block === 'object' &&
+              'text' in (block as Record<string, unknown>),
+          )
+          .map((block: { text: string }) => block.text)
+        if (textParts.length > 0) {
+          errorDetails = textParts.join('\n')
         }
       } else if ('error' in result) {
         // Fallback for legacy error format

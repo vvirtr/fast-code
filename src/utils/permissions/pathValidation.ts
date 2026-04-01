@@ -15,6 +15,7 @@ import {
   checkEditableInternalPath,
   checkPathSafetyForAutoEdit,
   checkReadableInternalPath,
+  matchingAllowRuleForPaths,
   matchingRuleForInput,
   pathInAllowedWorkingPath,
   pathInWorkingPath,
@@ -244,12 +245,14 @@ export function isPathAllowed(
     }
   }
 
-  // 4. Check allow rules for the operation type
-  const allowRule = matchingRuleForInput(
-    resolvedPath,
+  // 4. Check allow rules for the operation type — check both the original
+  // resolved path and symlink targets so allow rules work correctly.
+  const allowPathsToCheck =
+    precomputedPathsToCheck ?? getPathsForPermissionCheck(resolvedPath)
+  const allowRule = matchingAllowRuleForPaths(
+    allowPathsToCheck,
     context,
     permissionType,
-    'allow',
   )
   if (allowRule !== null) {
     return {

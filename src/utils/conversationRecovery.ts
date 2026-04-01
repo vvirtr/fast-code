@@ -183,6 +183,36 @@ export function deserializeMessagesWithInterruptDetection(
       }
     }
 
+    // Sanitize malformed tool_result blocks from older CLI versions or
+    // interrupted writes. Blocks with missing tool_use_id would crash
+    // filterUnresolvedToolUses and downstream code. Drop those blocks
+    // from user messages rather than crashing the entire resume.
+    for (const msg of migratedMessages) {
+      if (msg.type !== 'user') continue
+      const content = msg.message.content
+      if (!Array.isArray(content)) continue
+      for (let i = content.length - 1; i >= 0; i--) {
+        const block = content[i]
+        if (
+          block?.type === 'tool_result' &&
+          typeof (block as { tool_use_id?: unknown }).tool_use_id !==
+            'string'
+        ) {
+          // Remove the malformed tool_result block — it cannot be paired
+          // with any tool_use and would cause crashes downstream.
+          content.splice(i, 1)
+        }
+      }
+      // If all content blocks were removed, replace with a placeholder so
+      // the message is still structurally valid.
+      if (content.length === 0) {
+        content.push({
+          type: 'text' as const,
+          text: '[Removed malformed tool result from older CLI version]',
+        })
+      }
+    }
+
     // Filter out unresolved tool uses and any synthetic messages that follow them
     const filteredToolUses = filterUnresolvedToolUses(
       migratedMessages,

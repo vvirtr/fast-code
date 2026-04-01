@@ -23,6 +23,15 @@ export function isHookEvent(value: string): value is HookEvent {
   return HOOK_EVENTS.includes(value as HookEvent)
 }
 
+/**
+ * Hook-specific permission decision schema. Extends the base permission
+ * behavior with 'defer' — a headless-only option that pauses tool execution
+ * so the session can be resumed later (via -p --resume) to re-evaluate.
+ */
+const hookPermissionDecisionSchema = lazySchema(() =>
+  z.enum(['allow', 'deny', 'ask', 'defer']),
+)
+
 // Prompt elicitation protocol types. The `prompt` key acts as discriminator
 // (mirroring the {async:true} pattern), with the id as its value.
 export const promptRequestSchema = lazySchema(() =>
@@ -71,7 +80,7 @@ export const syncHookResponseSchema = lazySchema(() =>
       .union([
         z.object({
           hookEventName: z.literal('PreToolUse'),
-          permissionDecision: permissionBehaviorSchema().optional(),
+          permissionDecision: hookPermissionDecisionSchema().optional(),
           permissionDecisionReason: z.string().optional(),
           updatedInput: z.record(z.string(), z.unknown()).optional(),
           additionalContext: z.string().optional(),

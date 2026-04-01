@@ -680,6 +680,82 @@ export function allWorkingDirectories(
 // Exported for test/preload.ts cache clearing (shard-isolation).
 export const getResolvedWorkingDirPaths = memoize(getPathsForPermissionCheck)
 
+/**
+ * Resolves a path through the working directory symlink chain.
+ * If the path starts with a working directory prefix, replaces it with
+ * the resolved form so allow-rule matching sees the canonical destination.
+ * Returns the original path unchanged if no working directory prefix matches.
+ */
+function resolvePathThroughWorkingDirs(path: string): string {
+  for (const [original, resolved] of getResolvedWorkingDirPathPairs()) {
+    if (path === original || path.startsWith(original + sep)) {
+      return resolved + path.slice(original.length)
+    }
+  }
+  return path
+}
+
+/**
+ * Returns [originalDir, resolvedDir] pairs for all working directories.
+ * Memoized because working directories are session-stable.
+ */
+const getResolvedWorkingDirPathPairs = memoize(
+  function getResolvedWorkingDirPathPairs(): Array<[string, string]> {
+    const fs = getFsImplementation()
+    const pairs: Array<[string, string]> = []
+    const cwdDir = getOriginalCwd()
+    try {
+      const resolved = fs.realpathSync(cwdDir)
+      if (resolved !== cwdDir) {
+        pairs.push([cwdDir, resolved])
+      }
+    } catch {
+      // If resolution fails, skip this pair
+    }
+    return pairs
+  },
+)
+
+/**
+ * Checks allow rules against ALL paths (original + symlink-resolved), so that
+ * Edit(//path/**) and Read(//path/**) allow rules check the resolved symlink
+ * target, not just the requested path.
+ *
+ * SECURITY: ALL paths must match an allow rule for access to be granted.
+ * This prevents a symlink from bypassing the allow boundary — if a symlink
+ * points outside the allowed directory, no single allow rule will cover both
+ * the symlink path and its target.
+ *
+ * Also tries resolving through working directory paths for allow rule matching,
+ * so that a rule like Edit(/project/**) works even when /project is a symlink
+ * to /data/project.
+ */
+export function matchingAllowRuleForPaths(
+  pathsToCheck: readonly string[],
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionRule | null {
+  let firstMatch: PermissionRule | null = null
+
+  for (const pathToCheck of pathsToCheck) {
+    let rule = matchingRuleForInput(pathToCheck, context, toolType, 'allow')
+    if (!rule) {
+      // Try resolving through working directory symlinks
+      const resolved = resolvePathThroughWorkingDirs(pathToCheck)
+      if (resolved !== pathToCheck) {
+        rule = matchingRuleForInput(resolved, context, toolType, 'allow')
+      }
+    }
+    if (!rule) {
+      // Not all paths matched — deny
+      return null
+    }
+    firstMatch ??= rule
+  }
+
+  return firstMatch
+}
+
 export function pathInAllowedWorkingPath(
   path: string,
   toolPermissionContext: ToolPermissionContext,
@@ -1157,12 +1233,12 @@ export function checkReadPermissionForTool(
     return internalReadResult
   }
 
-  // 8. Check for allow rules
-  const allowRule = matchingRuleForInput(
-    path,
+  // 8. Check for allow rules — check both the original path and resolved
+  // symlink targets so allow rules work correctly for symlinked paths.
+  const allowRule = matchingAllowRuleForPaths(
+    pathsToCheck,
     toolPermissionContext,
     'read',
-    'allow',
   )
   if (allowRule) {
     return {
@@ -1374,12 +1450,12 @@ export function checkWritePermissionForTool<Input extends AnyObject>(
     }
   }
 
-  // 4. Check for allow rules
-  const allowRule = matchingRuleForInput(
-    path,
+  // 4. Check for allow rules — check both the original path and resolved
+  // symlink targets so allow rules work correctly for symlinked paths.
+  const allowRule = matchingAllowRuleForPaths(
+    pathsToCheck,
     toolPermissionContext,
     'edit',
-    'allow',
   )
   if (allowRule) {
     return {
