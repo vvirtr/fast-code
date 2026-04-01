@@ -44,7 +44,7 @@ fast -c                       # continue last session
 fast --version                # 2.1.89-fast (Fast Code)
 ```
 
-Auth: set `ANTHROPIC_API_KEY` or run `fast auth login`.
+Auth: set `ANTHROPIC_API_KEY` in env or `~/.claude/settings.json`. Anthropic OAuth is disabled by default — set `FAST_CODE_ENABLE_OAUTH=1` to re-enable.
 
 ## v2.1.89-fast
 
@@ -62,6 +62,9 @@ Ported all fixes from Claude Code 2.1.89:
 - Edit works on files viewed via `bash cat/sed` without separate Read
 - Bash tool warns when formatter/linter modifies previously-read files
 - System prompt trimmed 49% (56KB → 28KB)
+- All telemetry disabled (Datadog, Anthropic 1P, BigQuery, OTel — no data sent)
+- Anthropic OAuth disabled by default (avoids account risk)
+- 900+ lines of ant-only dead code removed (mockRateLimits, undercover, dumpPrompts, TungstenTool)
 
 ## What changed
 
