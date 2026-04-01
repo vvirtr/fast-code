@@ -21,6 +21,15 @@ const SuggestBackgroundPRTool =
     ? require('./tools/SuggestBackgroundPRTool/SuggestBackgroundPRTool.js')
         .SuggestBackgroundPRTool
     : null
+// [fast-code] ant-only — lazy conditional require so bundler can DCE
+const TungstenTool =
+  process.env.USER_TYPE === 'ant'
+    ? require('./tools/TungstenTool/TungstenTool.js').TungstenTool
+    : null
+const ConfigTool =
+  process.env.USER_TYPE === 'ant'
+    ? require('./tools/ConfigTool/ConfigTool.js').ConfigTool
+    : null
 const SleepTool =
   feature('PROACTIVE') || feature('KAIROS')
     ? require('./tools/SleepTool/SleepTool.js').SleepTool
@@ -56,7 +65,7 @@ import { TodoWriteTool } from './tools/TodoWriteTool/TodoWriteTool.js'
 import { ExitPlanModeV2Tool } from './tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
 import { GrepTool } from './tools/GrepTool/GrepTool.js'
-import { TungstenTool } from './tools/TungstenTool/TungstenTool.js'
+// [fast-code] ant-only, stubbed — TungstenTool moved to lazy conditional require below
 // Lazy require to break circular dependency: tools.ts -> TeamCreateTool/TeamDeleteTool -> ... -> tools.ts
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getTeamCreateTool = () =>
@@ -73,7 +82,7 @@ import { AskUserQuestionTool } from './tools/AskUserQuestionTool/AskUserQuestion
 import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { EnterPlanModeTool } from './tools/EnterPlanModeTool/EnterPlanModeTool.js'
-import { ConfigTool } from './tools/ConfigTool/ConfigTool.js'
+// [fast-code] ant-only, stubbed — ConfigTool moved to lazy conditional require below
 import { uniqBy } from './utils/lodashNative.js'
 import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
 import { isTodoV2Enabled } from './utils/tasks.js'
@@ -231,8 +240,8 @@ export function getAllBaseTools(): Tools {
     AskUserQuestionTool,
     SkillTool,
     EnterPlanModeTool,
-    ...(process.env.USER_TYPE === 'ant' ? [ConfigTool] : []),
-    ...(process.env.USER_TYPE === 'ant' ? [TungstenTool] : []),
+    ...(ConfigTool ? [ConfigTool] : []),
+    ...(TungstenTool ? [TungstenTool] : []),
     ...(SuggestBackgroundPRTool ? [SuggestBackgroundPRTool] : []),
     ...(WebBrowserTool ? [WebBrowserTool] : []),
     ...(isTodoV2Enabled()

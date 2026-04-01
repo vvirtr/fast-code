@@ -98,6 +98,10 @@ function isManagedOAuthContext(): boolean {
 /** Whether we are supporting direct 1P auth. */
 // this code is closely related to getAuthTokenSource
 export function isAnthropicAuthEnabled(): boolean {
+  // [fast-code] OAuth disabled by default to avoid account risk.
+  // Set FAST_CODE_ENABLE_OAUTH=1 to re-enable Anthropic OAuth.
+  if (!isEnvTruthy(process.env.FAST_CODE_ENABLE_OAUTH)) return false
+
   // --bare: API-key-only, never OAuth.
   if (isBareMode()) return false
 
