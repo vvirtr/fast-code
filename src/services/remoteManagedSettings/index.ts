@@ -75,27 +75,8 @@ const LOADING_PROMISE_TIMEOUT_MS = 30000 // 30 seconds
  * Includes a timeout to prevent deadlocks if loadRemoteManagedSettings() is never called.
  */
 export function initializeRemoteManagedSettingsLoadingPromise(): void {
-  if (loadingCompletePromise) {
-    return
-  }
-
-  if (isRemoteManagedSettingsEligible()) {
-    loadingCompletePromise = new Promise(resolve => {
-      loadingCompleteResolve = resolve
-
-      // Set a timeout to resolve the promise even if loadRemoteManagedSettings() is never called
-      // This prevents deadlocks in Agent SDK tests and other non-CLI contexts
-      setTimeout(() => {
-        if (loadingCompleteResolve) {
-          logForDebugging(
-            'Remote settings: Loading promise timed out, resolving anyway',
-          )
-          loadingCompleteResolve()
-          loadingCompleteResolve = null
-        }
-      }, LOADING_PROMISE_TIMEOUT_MS)
-    })
-  }
+  // [fast-code] Remote managed settings disabled — fetches from Anthropic API
+  return
 }
 
 /**
@@ -142,7 +123,8 @@ export function computeChecksumFromSettings(settings: SettingsJson): string {
  * Used to determine if they should wait for remote settings to load
  */
 export function isEligibleForRemoteManagedSettings(): boolean {
-  return isRemoteManagedSettingsEligible()
+  // [fast-code] Remote managed settings disabled
+  return false
 }
 
 /**
@@ -153,9 +135,8 @@ export function isEligibleForRemoteManagedSettings(): boolean {
  * - Loading was never started
  */
 export async function waitForRemoteManagedSettingsToLoad(): Promise<void> {
-  if (loadingCompletePromise) {
-    await loadingCompletePromise
-  }
+  // [fast-code] Remote managed settings disabled — resolves immediately
+  return
 }
 
 /**
@@ -512,46 +493,8 @@ async function fetchAndLoadRemoteManagedSettings(): Promise<SettingsJson | null>
  * until remote settings have been fetched.
  */
 export async function loadRemoteManagedSettings(): Promise<void> {
-  // Set up the promise for other systems to wait on
-  // Only if the user is eligible for remote settings AND promise not already set up
-  // (initializeRemoteManagedSettingsLoadingPromise may have been called earlier)
-  if (isRemoteManagedSettingsEligible() && !loadingCompletePromise) {
-    loadingCompletePromise = new Promise(resolve => {
-      loadingCompleteResolve = resolve
-    })
-  }
-
-  // Cache-first: if we have cached settings on disk, apply them and unblock
-  // waiters immediately. The fetch still runs below; notifyChange fires once,
-  // after the fetch, as before. Saves the ~77ms fetch-wait on print-mode startup.
-  // getRemoteManagedSettingsSyncFromCache has the eligibility guard and populates
-  // the session cache internally — no need to call setSessionCache here.
-  if (getRemoteManagedSettingsSyncFromCache() && loadingCompleteResolve) {
-    loadingCompleteResolve()
-    loadingCompleteResolve = null
-  }
-
-  try {
-    const settings = await fetchAndLoadRemoteManagedSettings()
-
-    // Start background polling to pick up settings changes mid-session
-    if (isRemoteManagedSettingsEligible()) {
-      startBackgroundPolling()
-    }
-
-    // Trigger hot-reload if settings were loaded (new or from cache).
-    // notifyChange resets the settings cache internally before iterating
-    // listeners — env vars, telemetry, and permissions update on next read.
-    if (settings !== null) {
-      settingsChangeDetector.notifyChange('policySettings')
-    }
-  } finally {
-    // Always resolve the promise, even if fetch failed (fail-open)
-    if (loadingCompleteResolve) {
-      loadingCompleteResolve()
-      loadingCompleteResolve = null
-    }
-  }
+  // [fast-code] Remote managed settings disabled — no fetch from Anthropic API
+  return
 }
 
 /**
@@ -560,22 +503,8 @@ export async function loadRemoteManagedSettings(): Promise<void> {
  * Fails open - if fetch fails, continues without remote settings
  */
 export async function refreshRemoteManagedSettings(): Promise<void> {
-  // Clear caches first
-  await clearRemoteManagedSettingsCache()
-
-  // If not enabled, notify that policy settings changed (to empty)
-  if (!isRemoteManagedSettingsEligible()) {
-    settingsChangeDetector.notifyChange('policySettings')
-    return
-  }
-
-  // Try to load new settings (fails open if fetch fails)
-  await fetchAndLoadRemoteManagedSettings()
-  logForDebugging('Remote settings: Refreshed after auth change')
-
-  // Notify listeners. notifyChange resets the settings cache internally;
-  // this triggers hot-reload (AppState update, env var application, etc.)
-  settingsChangeDetector.notifyChange('policySettings')
+  // [fast-code] Remote managed settings disabled — no refresh from Anthropic API
+  return
 }
 
 /**

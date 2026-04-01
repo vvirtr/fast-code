@@ -58,56 +58,8 @@ const MAX_FILE_SIZE_BYTES = 500 * 1024 // 500 KB per file (matches backend limit
  * Runs in background - caller should not await unless needed.
  */
 export async function uploadUserSettingsInBackground(): Promise<void> {
-  try {
-    if (
-      !feature('UPLOAD_USER_SETTINGS') ||
-      !getFeatureValue_CACHED_MAY_BE_STALE(
-        'tengu_enable_settings_sync_push',
-        false,
-      ) ||
-      !getIsInteractive() ||
-      !isUsingOAuth()
-    ) {
-      logForDiagnosticsNoPII('info', 'settings_sync_upload_skipped')
-      logEvent('tengu_settings_sync_upload_skipped_ineligible', {})
-      return
-    }
-
-    logForDiagnosticsNoPII('info', 'settings_sync_upload_starting')
-    const result = await fetchUserSettings()
-    if (!result.success) {
-      logForDiagnosticsNoPII('warn', 'settings_sync_upload_fetch_failed')
-      logEvent('tengu_settings_sync_upload_fetch_failed', {})
-      return
-    }
-
-    const projectId = await getRepoRemoteHash()
-    const localEntries = await buildEntriesFromLocalFiles(projectId)
-    const remoteEntries = result.isEmpty ? {} : result.data!.content.entries
-    const changedEntries = pickBy(
-      localEntries,
-      (value, key) => remoteEntries[key] !== value,
-    )
-
-    const entryCount = Object.keys(changedEntries).length
-    if (entryCount === 0) {
-      logForDiagnosticsNoPII('info', 'settings_sync_upload_no_changes')
-      logEvent('tengu_settings_sync_upload_skipped', {})
-      return
-    }
-
-    const uploadResult = await uploadUserSettings(changedEntries)
-    if (uploadResult.success) {
-      logForDiagnosticsNoPII('info', 'settings_sync_upload_success')
-      logEvent('tengu_settings_sync_upload_success', { entryCount })
-    } else {
-      logForDiagnosticsNoPII('warn', 'settings_sync_upload_failed')
-      logEvent('tengu_settings_sync_upload_failed', { entryCount })
-    }
-  } catch {
-    // Fail-open: log unexpected errors but don't block startup
-    logForDiagnosticsNoPII('error', 'settings_sync_unexpected_error')
-  }
+  // [fast-code] Settings sync upload disabled — sends data to Anthropic servers
+  return
 }
 
 // Cached so the fire-and-forget at runHeadless entry and the await in
@@ -127,11 +79,8 @@ export function _resetDownloadPromiseForTesting(): void {
  * Returns true if settings were applied, false otherwise.
  */
 export function downloadUserSettings(): Promise<boolean> {
-  if (downloadPromise) {
-    return downloadPromise
-  }
-  downloadPromise = doDownloadUserSettings()
-  return downloadPromise
+  // [fast-code] Settings sync download disabled — fetches from Anthropic servers
+  return Promise.resolve(false)
 }
 
 /**
@@ -150,8 +99,8 @@ export function downloadUserSettings(): Promise<boolean> {
  * settingsSync → changeDetector cycle edge.
  */
 export function redownloadUserSettings(): Promise<boolean> {
-  downloadPromise = doDownloadUserSettings(0)
-  return downloadPromise
+  // [fast-code] Settings sync re-download disabled — fetches from Anthropic servers
+  return Promise.resolve(false)
 }
 
 async function doDownloadUserSettings(
