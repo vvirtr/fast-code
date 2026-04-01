@@ -99,7 +99,7 @@ const FEATURE_FLAGS: Record<string, boolean> = {
   WORKFLOW_SCRIPTS: false,
 };
 
-const version = process.env.VERSION || "2.1.89-fast";
+const version = process.env.VERSION || "0.1.0";
 const buildTime = new Date().toISOString();
 
 const define: Record<string, string> = {

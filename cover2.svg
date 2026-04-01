@@ -19,7 +19,7 @@
   <text x="68" y="132" fill="#93c5fd" font-family="monospace" font-size="14" xml:space="preserve">  &#x2598;&#x2598; &#x259D;&#x259D;</text>
   <!-- Header -->
   <text x="200" y="100" fill="#93c5fd" font-family="monospace" font-size="15" font-weight="bold">Fast Code</text>
-  <text x="290" y="100" fill="#6e7681" font-family="monospace" font-size="15"> v2.1.89-fast</text>
+  <text x="290" y="100" fill="#6e7681" font-family="monospace" font-size="15"> v0.1.0</text>
   <text x="200" y="118" fill="#6e7681" font-family="monospace" font-size="13">anthropic/claude-opus-4.6 · API Usage Billing</text>
   <text x="200" y="136" fill="#6e7681" font-family="monospace" font-size="13">/home/vvirtr</text>
   <line x1="60" y1="155" x2="840" y2="155" stroke="#afc8f0" stroke-width="1" opacity="0.4"/>

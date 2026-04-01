@@ -5,13 +5,13 @@
   <img src="cover2.svg?v=2" width="700" alt="Fast Code terminal">
 </p>
 
-Optimized fork of Claude Code 2.1.89. Same functionality, smaller bundle, lower memory footprint.
+Optimized fork of Claude Code. Same functionality, smaller bundle, lower memory footprint.
 
 ## Benchmarks
 
 Linux, Bun 1.2, Opus 4.6. Median of 5 runs, `-p "say ok"`.
 
-| Metric | Claude Code 2.1.89 | Fast Code 2.1.89 | Delta |
+| Metric | Claude Code | Fast Code | Delta |
 |--------|-------------------|-------------------|-------|
 | Dist size | 41 MB | 7.3 MB | -82% |
 | Peak RSS (short) | 309 MB | 159 MB | -49% |
@@ -41,14 +41,14 @@ fast                          # interactive
 fast -p "your prompt"         # non-interactive
 fast --model sonnet           # pick model
 fast -c                       # continue last session
-fast --version                # 2.1.89-fast (Fast Code)
+fast --version                # 0.1.0 (Fast Code)
 ```
 
 Auth: set `ANTHROPIC_API_KEY` in env or `~/.claude/settings.json`. Anthropic OAuth is disabled by default — set `FAST_CODE_ENABLE_OAUTH=1` to re-enable.
 
-## v2.1.89-fast
+## v0.1.0
 
-Ported all fixes from Claude Code 2.1.89:
+Based on Claude Code 2.1.89. Ported fixes:
 
 - Autocompact thrash loop breaker (stops infinite compact cycles)
 - Memory leak fix: LRU cache keys hashed instead of raw JSON
